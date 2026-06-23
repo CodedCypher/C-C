@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: circuit-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: circuit
+      POSTGRES_PASSWORD: circuit
+      POSTGRES_DB: circuit_rocks
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U circuit -d circuit_rocks"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
