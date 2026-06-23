@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors / IDEs
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-workspace
+*.swp
+
+# Tooling caches
+.playwright-mcp/
+.playwright/
+playwright-report/
+test-results/
+.cache/
+.temp/
+.tmp/
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Claude
+.claude/
+CLAUDE.md
+
+# Docs / setup
+SETUP.md

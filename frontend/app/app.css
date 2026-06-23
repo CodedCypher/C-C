@@ -1,0 +1,227 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ============================================================
+   circuit.rocks — DESIGN SYSTEM THEME LAYER
+   Neo-brutalism: paper canvas, near-black ink, signal-yellow rare,
+   carbon as a SECTIONAL device (never global dark). Radius 0 everywhere.
+   Hard offset shadows, NO blur. Space Grotesk + Space Mono.
+   ============================================================ */
+:root {
+  /* --- Raw brand tokens --- */
+  --paper: #f4f1e9;
+  --paper-2: #ece8dc;
+  --ink: #141414;
+  --carbon: #1a1a1a;
+  --signal: #ffd400;
+  --hazard: #ff5a1f;
+  --smoke: #6b6b6b;
+  --line: #000000;
+  --stock: #1f8a3b;
+  --soldout: #c62828;
+  --dark-meta: #9a968b;
+
+  /* --- shadcn semantic vars → brand tokens --- */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper);
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--signal);
+  --primary-foreground: var(--ink); /* black-on-yellow ALWAYS */
+  --secondary: var(--paper-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-2);
+  --muted-foreground: var(--smoke);
+  --accent: var(--signal); /* shadcn hover bg = signal */
+  --accent-foreground: var(--ink);
+  --destructive: var(--soldout);
+  --destructive-foreground: var(--paper);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--ink);
+
+  /* --- Hard offset shadows (no blur, ever) --- */
+  --shadow-brutal: 4px 4px 0 var(--line);
+  --shadow-brutal-lg: 6px 6px 0 var(--line);
+  --shadow-press: 2px 2px 0 var(--line);
+  --shadow-signal: 4px 4px 0 var(--signal);
+
+  /* --- Press motion --- */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur: 120ms;
+}
+
+/* Expose tokens to Tailwind's utility namespace (bg-paper, text-ink, border-line,
+   shadow-brutal, font-mono, etc). `inline` keeps utilities pointing at the raw vars. */
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-ink: var(--ink);
+  --color-carbon: var(--carbon);
+  --color-signal: var(--signal);
+  --color-hazard: var(--hazard);
+  --color-smoke: var(--smoke);
+  --color-line: var(--line);
+  --color-stock: var(--stock);
+  --color-soldout: var(--soldout);
+  --color-dark-meta: var(--dark-meta);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  /* Radius 0 — no exceptions. Override the whole scale incl. rounded-full. */
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+  --radius-3xl: 0;
+  --radius-full: 0;
+
+  --shadow-brutal: var(--shadow-brutal);
+  --shadow-brutal-lg: var(--shadow-brutal-lg);
+  --shadow-press: var(--shadow-press);
+  --shadow-signal: var(--shadow-signal);
+}
+
+/* ============================================================
+   Base reset (ported from the design system's tokens/base.css)
+   ============================================================ */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.6;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h1 {
+    letter-spacing: -0.02em;
+    line-height: 1.02;
+  }
+  h2 {
+    letter-spacing: -0.01em;
+    line-height: 1.05;
+  }
+  h3 {
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  p {
+    margin: 0;
+    text-wrap: pretty;
+  }
+
+  a {
+    color: inherit;
+    text-underline-offset: 2px;
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+  }
+
+  ::selection {
+    background: var(--signal);
+    color: var(--ink);
+  }
+
+  /* Zero radius is law — guard UA defaults on form controls */
+  button,
+  input,
+  select,
+  textarea {
+    border-radius: 0;
+    font: inherit;
+  }
+}
+
+/* ============================================================
+   Brand utilities
+   ============================================================ */
+@layer components {
+  /* Mono label — UPPERCASE, wide tracking */
+  .cr-mono {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.8125rem;
+  }
+  .cr-micro {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.6875rem;
+  }
+  .cr-display {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: clamp(3rem, 8vw, 7rem);
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+  }
+
+  /* The physical "press": transform + transition only.
+     Shadow shrink/collapse is applied per-element via shadow utilities so the
+     shadow COLOR can vary (line on paper, paper on carbon). */
+  .cr-press {
+    transition:
+      transform var(--dur) var(--ease),
+      box-shadow var(--dur) var(--ease);
+  }
+  .cr-press:hover {
+    transform: translate(2px, 2px);
+  }
+  .cr-press:active {
+    transform: translate(4px, 4px);
+  }
+}
