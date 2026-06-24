@@ -25,6 +25,23 @@ export function peso(n: number): string {
   return PESO.format(n).replace(/^PHP\s?/, "₱");
 }
 
+const PESO_2 = new Intl.NumberFormat("en-PH", {
+  style: "currency",
+  currency: "PHP",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/**
+ * Format a number as Philippine peso (₱) WITH centavos (2 decimals). Used on the
+ * storefront, where shoppers expect exact prices (e.g. "₱5,915.00"). Admin
+ * tables use the whole-peso {@link peso} instead.
+ */
+export function peso2(n: number): string {
+  if (!Number.isFinite(n)) return "₱0.00";
+  return PESO_2.format(n).replace(/^PHP\s?/, "₱");
+}
+
 const DATE = new Intl.DateTimeFormat("en-PH", {
   year: "numeric",
   month: "short",

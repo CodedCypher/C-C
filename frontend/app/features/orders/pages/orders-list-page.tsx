@@ -14,6 +14,7 @@
  */
 
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Search, ShoppingCart } from "lucide-react";
 
 import {
@@ -53,7 +54,15 @@ const columns: Column<OrderRow>[] = [
   {
     key: "orderNumber",
     header: "Order #",
-    render: (r) => <span className="font-mono text-ink">{r.orderNumber}</span>,
+    render: (r) => (
+      <Link
+        to="/orders/$orderId"
+        params={{ orderId: r.id }}
+        className="font-mono text-ink underline-offset-2 hover:underline"
+      >
+        {r.orderNumber}
+      </Link>
+    ),
   },
   {
     key: "customer",

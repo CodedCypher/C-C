@@ -86,11 +86,7 @@ export class BomController {
     @Query('warehouseId') warehouseId: string,
     @Query('qty') qty?: string,
   ): Promise<FeasibilityResult> {
-    return this.bomService.feasibility(
-      id,
-      qty ? Number(qty) : 1,
-      warehouseId,
-    );
+    return this.bomService.feasibility(id, qty ? Number(qty) : 1, warehouseId);
   }
 
   @Get(':id')

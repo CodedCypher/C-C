@@ -1,28 +1,30 @@
 /**
  * circuit.rocks — storefront feature: public marketing home page.
  *
- * Ported from the old SSR `routes/home.tsx` + `components/home/homepage.tsx`.
- * This is the public storefront: it is STATIC (no backend calls, no api/hooks).
- * All content comes from the verbatim demo `data.ts`. Presentational components
- * (nav, footer, product card, etc.) live in this feature's `components/`.
- *
- * In-page links are plain `<a href="#">` anchors (no route navigation), so no
- * router import is needed here.
+ * The page's chrome (AnnouncementBar / NavHeader / Footer / cart drawer) now
+ * lives in `StorefrontLayout`; this component only renders the home content.
+ * The Featured + Top Movers rails are now DYNAMIC — they fetch real ACTIVE
+ * products via `useFeaturedProducts` and each card links to its PDP
+ * (/products/$slug). The rest of the page is still static demo content from
+ * `data.ts`; if no real products exist yet, the rails fall back to that data.
  */
 
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
+import { peso2 } from "~/lib/format";
 
-import { AnnouncementBar } from "../components/announcement-bar";
 import { BrandTile } from "../components/brand-tile";
 import { DateBlockCard } from "../components/date-block-card";
-import { Footer } from "../components/footer";
-import { NavHeader } from "../components/nav-header";
 import { ProductCard } from "../components/product-card";
 import { SectionLabel } from "../components/section-label";
 import { StatBlock } from "../components/stat-block";
-import { BRANDS, EVENTS, FEATURED, MEGA, MOVERS, PROPS } from "../data";
+import { useFeaturedProducts } from "../hooks/use-storefront";
+import {
+  AVAILABILITY_META,
+  type ProductSummary,
+} from "../types/storefront.types";
+import { BRANDS, EVENTS, FEATURED, MOVERS, PROPS } from "../data";
 
 const MAXW = "mx-auto max-w-[1320px]";
 const GRID4 =
@@ -59,6 +61,22 @@ function SectionHead({
         </a>
       )}
     </div>
+  );
+}
+
+/* ---------- real product card (links to its PDP) ---------- */
+function RealProductCard({ p }: { p: ProductSummary }) {
+  const meta = AVAILABILITY_META[p.availability];
+  return (
+    <ProductCard
+      title={p.title}
+      sku={p.brand ?? undefined}
+      price={peso2(p.priceMin)}
+      image={p.primaryImage ?? undefined}
+      imageLabel={`${p.slug}.jpg`}
+      badge={{ label: meta.label.toUpperCase(), variant: meta.variant }}
+      href={`/products/${p.slug}`}
+    />
   );
 }
 
@@ -131,24 +149,30 @@ function Hero() {
   );
 }
 
-/* ---------- Featured rail ---------- */
-function FeaturedRail() {
+/* ---------- Featured rail (dynamic) ---------- */
+function FeaturedRail({ products }: { products: ProductSummary[] }) {
   return (
     <section className="border-b-2 border-line bg-paper">
       <div className={`${MAXW} px-6 py-16`}>
         <SectionHead label="featured.txt" action="VIEW ALL →" />
         <div className="grid auto-cols-[minmax(230px,1fr)] grid-flow-col gap-[18px] overflow-x-auto pb-2">
-          {FEATURED.map((p) => (
-            <ProductCard key={p.sku} {...p} image={`/products/${p.imageLabel}`} />
-          ))}
+          {products.length > 0
+            ? products.map((p) => <RealProductCard key={p.slug} p={p} />)
+            : FEATURED.map((p) => (
+                <ProductCard
+                  key={p.sku}
+                  {...p}
+                  image={`/products/${p.imageLabel}`}
+                />
+              ))}
         </div>
       </div>
     </section>
   );
 }
 
-/* ---------- Top movers ---------- */
-function TopMovers() {
+/* ---------- Top movers (dynamic) ---------- */
+function TopMovers({ products }: { products: ProductSummary[] }) {
   return (
     <section className="border-b-2 border-line bg-paper-2">
       <div className={`${MAXW} px-6 py-16`}>
@@ -158,9 +182,15 @@ function TopMovers() {
           action="VIEW ALL →"
         />
         <div className={GRID4}>
-          {MOVERS.map((p) => (
-            <ProductCard key={p.sku} {...p} image={`/products/${p.imageLabel}`} />
-          ))}
+          {products.length > 0
+            ? products.map((p) => <RealProductCard key={p.slug} p={p} />)
+            : MOVERS.map((p) => (
+                <ProductCard
+                  key={p.sku}
+                  {...p}
+                  image={`/products/${p.imageLabel}`}
+                />
+              ))}
         </div>
       </div>
     </section>
@@ -310,19 +340,19 @@ function BrandStatement() {
 
 /* ---------- Composition ---------- */
 export function HomePage() {
+  const { data: products } = useFeaturedProducts(12);
+  const featured = products ?? [];
+
   return (
     <>
-      <AnnouncementBar />
-      <NavHeader cartCount={2} megaMenu={MEGA} />
       <Hero />
-      <FeaturedRail />
-      <TopMovers />
+      <FeaturedRail products={featured} />
+      <TopMovers products={featured} />
       <ShopByBrand />
       <TutorialBand />
       <EventsStrip />
       <ValueProps />
       <BrandStatement />
-      <Footer />
     </>
   );
 }

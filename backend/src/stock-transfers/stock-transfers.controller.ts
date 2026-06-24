@@ -26,9 +26,7 @@ import { ReceiveTransferDto } from './dto/receive-transfer.dto';
 @Controller('stock-transfers')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class StockTransfersController {
-  constructor(
-    private readonly stockTransfersService: StockTransfersService,
-  ) {}
+  constructor(private readonly stockTransfersService: StockTransfersService) {}
 
   // ── Reads ──────────────────────────────────────────────────────────────────
   @Get()

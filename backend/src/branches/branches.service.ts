@@ -293,9 +293,7 @@ export class BranchesService {
       warehouseId: l.warehouseId,
       priority: l.priority ?? 0,
       isDefault:
-        defaultIdx === -1
-          ? i === 0 && dto.links.length > 0
-          : i === defaultIdx,
+        defaultIdx === -1 ? i === 0 && dto.links.length > 0 : i === defaultIdx,
     }));
 
     await this.prisma.$transaction(async (tx) => {
@@ -429,7 +427,7 @@ export class BranchesService {
           stockItemId: w.stockItemId,
           name,
           sku,
-          kind: s.kind as 'VARIANT' | 'MATERIAL',
+          kind: s.kind,
           uom: s.unitOfMeasure,
           onHand: 0,
           reserved: 0,

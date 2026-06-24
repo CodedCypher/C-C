@@ -35,13 +35,48 @@ import {
   RegisterPage,
   LogoutPage,
 } from "~/features/auth";
-import { BranchesListPage } from "~/features/branches";
+import { BranchesListPage, BranchDetailPage } from "~/features/branches";
+import {
+  ProjectKitsListPage,
+  ProjectKitNewPage,
+  ProjectKitEditPage,
+} from "~/features/project-kits";
+import { PaymentMethodsListPage } from "~/features/payment-methods";
 import { DashboardPage } from "~/features/dashboard";
-import { InventoryListPage } from "~/features/inventory";
-import { OrdersListPage } from "~/features/orders";
+import { InventoryListPage, InventoryItemPage } from "~/features/inventory";
+import { OrdersListPage, OrderDetailPage } from "~/features/orders";
 import { ProductsListPage, ProductNewPage } from "~/features/products";
-import { WarehousesListPage } from "~/features/warehouses";
-import { HomePage } from "~/features/storefront";
+import { RawMaterialsListPage } from "~/features/raw-materials";
+import {
+  TransfersListPage,
+  TransferNewPage,
+  TransferDetailPage,
+} from "~/features/transfers";
+import { BomListPage, BomEditorPage } from "~/features/bom";
+import {
+  BuildOrdersListPage,
+  BuildOrderNewPage,
+  BuildOrderDetailPage,
+} from "~/features/build-orders";
+import { WarehousesListPage, WarehouseDetailPage } from "~/features/warehouses";
+import {
+  HomePage,
+  StorefrontLayout,
+  ProductDetailPage,
+  ProjectsListPage,
+  ProjectDetailPage,
+  BuildChatPage,
+  BuildDetailPage,
+  MyBuildsPage,
+  CheckoutPage,
+} from "~/features/storefront";
+import {
+  AccountLayout,
+  MyOrdersPage,
+  MyOrderDetailPage,
+  AddressesPage,
+  ProfilePage,
+} from "~/features/account";
 import { queryClient } from "~/lib/query-client";
 
 /* ------------------------------------------------------------------ *
@@ -54,13 +89,126 @@ const rootRoute = createRootRoute({
 });
 
 /* ------------------------------------------------------------------ *
- * Public routes
- * ------------------------------------------------------------------ */
+ * Public storefront (pathless layout — NO auth guard)
+ * ------------------------------------------------------------------ *
+ * Mirrors the admin shell pattern but public: a pathless layout route renders
+ * the storefront chrome (AnnouncementBar / NavHeader / Footer / cart drawer)
+ * via `StorefrontLayout`, and its children are the shopper-facing pages. The
+ * PDP at /products/$slug is intentionally a SIBLING namespace to the guarded
+ * admin /products list (distinct route nodes, no literal collision).
+ */
+
+const storefrontRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "storefront",
+  component: StorefrontLayout,
+});
 
 const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => storefrontRoute,
   path: "/",
   component: HomePage,
+});
+
+const productDetailRoute = createRoute({
+  getParentRoute: () => storefrontRoute,
+  path: "/products/$slug",
+  component: ProductDetailPage,
+});
+
+const projectsRoute = createRoute({
+  getParentRoute: () => storefrontRoute,
+  path: "/projects",
+  component: ProjectsListPage,
+});
+
+const projectDetailRoute = createRoute({
+  getParentRoute: () => storefrontRoute,
+  path: "/projects/$slug",
+  component: ProjectDetailPage,
+});
+
+const buildRoute = createRoute({
+  getParentRoute: () => storefrontRoute,
+  path: "/build",
+  component: BuildChatPage,
+});
+
+const buildChatRoute = createRoute({
+  getParentRoute: () => storefrontRoute,
+  path: "/build/$chatId",
+  component: BuildChatPage,
+});
+
+const buildDetailRoute = createRoute({
+  getParentRoute: () => storefrontRoute,
+  path: "/builds/$id",
+  component: BuildDetailPage,
+});
+
+const myBuildsRoute = createRoute({
+  getParentRoute: () => storefrontRoute,
+  path: "/my-builds",
+  component: MyBuildsPage,
+});
+
+const checkoutRoute = createRoute({
+  getParentRoute: () => storefrontRoute,
+  path: "/checkout",
+  component: CheckoutPage,
+});
+
+/* ------------------------------------------------------------------ *
+ * Account hub (auth-gated pathless layout, child of the storefront shell)
+ * ------------------------------------------------------------------ *
+ * Renders INSIDE the public storefront chrome (it's a child of `storefrontRoute`,
+ * so the NavHeader/Footer stay). Unlike the admin guard, ANY authenticated role
+ * is allowed (no `isStaff` check) — these are customer-owned resources.
+ */
+
+const accountRoute = createRoute({
+  getParentRoute: () => storefrontRoute,
+  id: "account",
+  beforeLoad: async ({ location }) => {
+    const user = await queryClient.ensureQueryData(meQueryOptions);
+    if (!user) {
+      throw redirect({
+        to: "/login",
+        search: { next: location.href },
+      });
+    }
+  },
+  component: AccountLayout,
+});
+
+const accountIndexRoute = createRoute({
+  getParentRoute: () => accountRoute,
+  path: "/account",
+  component: MyOrdersPage,
+});
+
+const accountOrdersRoute = createRoute({
+  getParentRoute: () => accountRoute,
+  path: "/account/orders",
+  component: MyOrdersPage,
+});
+
+const accountOrderDetailRoute = createRoute({
+  getParentRoute: () => accountRoute,
+  path: "/account/orders/$orderId",
+  component: MyOrderDetailPage,
+});
+
+const accountAddressesRoute = createRoute({
+  getParentRoute: () => accountRoute,
+  path: "/account/addresses",
+  component: AddressesPage,
+});
+
+const accountProfileRoute = createRoute({
+  getParentRoute: () => accountRoute,
+  path: "/account/profile",
+  component: ProfilePage,
 });
 
 /** `?next=` is preserved across login/register so we bounce back after auth. */
@@ -170,6 +318,12 @@ const ordersRoute = createRoute({
   component: OrdersListPage,
 });
 
+const orderDetailRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/orders/$orderId",
+  component: OrderDetailPage,
+});
+
 const warehousesRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: "/warehouses",
@@ -182,12 +336,125 @@ const branchesRoute = createRoute({
   component: BranchesListPage,
 });
 
+const branchDetailRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/branches/$branchId",
+  component: BranchDetailPage,
+});
+
+const projectKitsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/project-kits",
+  component: ProjectKitsListPage,
+});
+
+const projectKitNewRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/project-kits/new",
+  component: ProjectKitNewPage,
+});
+
+const projectKitEditRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/project-kits/$kitId",
+  component: ProjectKitEditPage,
+});
+
+const paymentMethodsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/payment-methods",
+  component: PaymentMethodsListPage,
+});
+
+const warehouseDetailRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/warehouses/$warehouseId",
+  component: WarehouseDetailPage,
+});
+
+const inventoryItemRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/inventory/$stockItemId",
+  component: InventoryItemPage,
+});
+
+const rawMaterialsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/raw-materials",
+  component: RawMaterialsListPage,
+});
+
+const transfersRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/transfers",
+  component: TransfersListPage,
+});
+
+const transferNewRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/transfers/new",
+  component: TransferNewPage,
+});
+
+const transferDetailRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/transfers/$transferId",
+  component: TransferDetailPage,
+});
+
+const bomsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/boms",
+  component: BomListPage,
+});
+
+const bomEditorRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/boms/$variantId",
+  component: BomEditorPage,
+});
+
+const buildOrdersRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/build-orders",
+  component: BuildOrdersListPage,
+});
+
+const buildOrderNewRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/build-orders/new",
+  component: BuildOrderNewPage,
+});
+
+const buildOrderDetailRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/build-orders/$buildOrderId",
+  component: BuildOrderDetailPage,
+});
+
 /* ------------------------------------------------------------------ *
  * Assemble + create router
  * ------------------------------------------------------------------ */
 
 const routeTree = rootRoute.addChildren([
-  indexRoute,
+  storefrontRoute.addChildren([
+    indexRoute,
+    productDetailRoute,
+    projectsRoute,
+    projectDetailRoute,
+    buildRoute,
+    buildChatRoute,
+    buildDetailRoute,
+    myBuildsRoute,
+    checkoutRoute,
+    accountRoute.addChildren([
+      accountIndexRoute,
+      accountOrdersRoute,
+      accountOrderDetailRoute,
+      accountAddressesRoute,
+      accountProfileRoute,
+    ]),
+  ]),
   loginRoute,
   registerRoute,
   logoutRoute,
@@ -196,9 +463,26 @@ const routeTree = rootRoute.addChildren([
     productNewRoute,
     dashboardRoute,
     inventoryRoute,
+    inventoryItemRoute,
     ordersRoute,
+    orderDetailRoute,
     warehousesRoute,
+    warehouseDetailRoute,
     branchesRoute,
+    branchDetailRoute,
+    projectKitsRoute,
+    projectKitNewRoute,
+    projectKitEditRoute,
+    paymentMethodsRoute,
+    rawMaterialsRoute,
+    transfersRoute,
+    transferNewRoute,
+    transferDetailRoute,
+    bomsRoute,
+    bomEditorRoute,
+    buildOrdersRoute,
+    buildOrderNewRoute,
+    buildOrderDetailRoute,
   ]),
 ]);
 

@@ -220,12 +220,11 @@ export class BomService {
       }
       map.set(it.id, {
         stockItemId: it.id,
-        kind: it.kind as 'VARIANT' | 'MATERIAL',
+        kind: it.kind,
         name,
         sku,
         uom: it.unitOfMeasure,
-        standardCost:
-          it.standardCost === null ? null : toNum(it.standardCost),
+        standardCost: it.standardCost === null ? null : toNum(it.standardCost),
         activeBomId,
       });
     }
@@ -247,16 +246,15 @@ export class BomService {
     return lines.map((l) => {
       const m = meta.get(l.stockItemId);
       return {
-        meta:
-          m ?? {
-            stockItemId: l.stockItemId,
-            kind: 'MATERIAL',
-            name: '',
-            sku: '',
-            uom: '',
-            standardCost: null,
-            activeBomId: null,
-          },
+        meta: m ?? {
+          stockItemId: l.stockItemId,
+          kind: 'MATERIAL',
+          name: '',
+          sku: '',
+          uom: '',
+          standardCost: null,
+          activeBomId: null,
+        },
         quantity: toNum(l.quantity),
         scrapPct: l.scrapPct === null ? null : toNum(l.scrapPct),
       };
@@ -307,7 +305,7 @@ export class BomService {
         variantId: v.id,
         sku: v.sku,
         title: this.variantName(v.product?.title, v.title),
-        sourcingType: v.sourcingType as 'BUILT' | 'PURCHASED',
+        sourcingType: v.sourcingType,
         hasActiveBom: active !== null,
         activeBomId: active?.id ?? null,
         versionCount: v.boms.length,
@@ -434,7 +432,13 @@ export class BomService {
 
     const leafAgg = new Map<
       string,
-      { stockItemId: string; name: string; sku: string; uom: string; totalQty: number }
+      {
+        stockItemId: string;
+        name: string;
+        sku: string;
+        uom: string;
+        totalQty: number;
+      }
     >();
     let maxDepth = 0;
 

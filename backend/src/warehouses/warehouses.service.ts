@@ -246,7 +246,7 @@ export class WarehousesService {
         stockItemId: w.stockItemId,
         name,
         sku,
-        kind: s.kind as 'VARIANT' | 'MATERIAL',
+        kind: s.kind,
         uom: s.unitOfMeasure,
         onHand,
         reserved,

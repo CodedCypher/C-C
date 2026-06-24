@@ -63,9 +63,7 @@ export class BuildOrdersController {
 
   @Post(':id/start')
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
-  start(
-    @Param('id') id: string,
-  ): Promise<{ id: string; status: BuildStatus }> {
+  start(@Param('id') id: string): Promise<{ id: string; status: BuildStatus }> {
     return this.buildOrdersService.start(id);
   }
 

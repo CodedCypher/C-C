@@ -12,11 +12,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { UserRole } from '../generated/prisma/client';
-import {
-  AuthService,
-  type PublicUser,
-  type RequestMeta,
-} from './auth.service';
+import { AuthService, type PublicUser, type RequestMeta } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
@@ -148,7 +144,6 @@ export class AuthController {
   // GoogleOAuthGuard kicks off the OAuth redirect (and carries ?next via state).
   @Get('google')
   @UseGuards(GoogleOAuthGuard)
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   googleAuth(): void {}
 
   // ── GET /auth/google/callback ─────────────────────────────────────────────
@@ -164,11 +159,9 @@ export class AuthController {
     setAccessCookie(res, tokens.accessToken);
     setRefreshCookie(res, tokens.refreshToken);
 
-    const next =
-      typeof req.query.state === 'string' ? req.query.state : '';
+    const next = typeof req.query.state === 'string' ? req.query.state : '';
     const isStaff = STAFF_ROLES.includes(user.role);
-    const target =
-      next && next !== '/' ? next : isStaff ? '/admin' : '/';
+    const target = next && next !== '/' ? next : isStaff ? '/admin' : '/';
     const frontend = process.env.FRONTEND_URL ?? 'http://localhost:5173';
     res.redirect(`${frontend}${target}`);
   }

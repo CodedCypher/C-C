@@ -14,6 +14,11 @@ import { StockTransfersModule } from './stock-transfers/stock-transfers.module';
 import { BomModule } from './bom/bom.module';
 import { BuildOrdersModule } from './build-orders/build-orders.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { StorefrontModule } from './storefront/storefront.module';
+import { AddressesModule } from './addresses/addresses.module';
+import { AccountModule } from './account/account.module';
+import { PaymentMethodsModule } from './payment-methods/payment-methods.module';
+import { ProjectKitsModule } from './project-kits/project-kits.module';
 
 @Module({
   imports: [
@@ -30,6 +35,11 @@ import { DashboardModule } from './dashboard/dashboard.module';
     BomModule,
     BuildOrdersModule,
     DashboardModule,
+    StorefrontModule,
+    AddressesModule,
+    AccountModule,
+    PaymentMethodsModule,
+    ProjectKitsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

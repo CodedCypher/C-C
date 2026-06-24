@@ -174,6 +174,11 @@ enum PaymentStatus {
   PARTIALLY_REFUNDED
 }
 
+enum FulfillmentType {
+  PICKUP
+  DELIVERY
+}
+
 enum FulfillmentStatus {
   PENDING
   PICKED
@@ -394,6 +399,8 @@ model User {
   sessions        Session[]
   orders          Order[]
   carts           Cart[]
+  savedBuilds     SavedBuild[]
+  buildChats      BuildChat[]
 
   @@index([role])
   @@index([homeBranchId])
@@ -422,6 +429,13 @@ model Address {
   line2      String?
   city       String
   region     String
+  // Philippine administrative hierarchy (denormalized names + ref codes).
+  province     String?
+  barangay     String?
+  regionCode   String?
+  provinceCode String?
+  cityCode     String?
+  barangayCode String?
   postalCode String
   country    String
   phone      String?
@@ -432,6 +446,62 @@ model Address {
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+}
+
+/* ------------------------------------------------------------------ *
+ * Philippine address reference data (PSGC) — seeded from
+ * prisma/dataset/*.json via `pnpm seed:address`. Flat lookup tables
+ * linked by the dataset codes; powers the cascading checkout dropdowns.
+ * ------------------------------------------------------------------ */
+
+model RefRegion {
+  regCode  String @id
+  psgcCode String
+  regDesc  String
+}
+
+model RefProvince {
+  provCode String @id
+  regCode  String
+  psgcCode String
+  provDesc String
+
+  @@index([regCode])
+}
+
+model RefCityMun {
+  citymunCode String @id
+  provCode    String
+  psgcCode    String
+  citymunDesc String
+
+  @@index([provCode])
+}
+
+model RefBarangay {
+  brgyCode    String @id
+  citymunCode String
+  provCode    String
+  regCode     String
+  brgyDesc    String
+
+  @@index([citymunCode])
+}
+
+/* Admin-managed payment methods shown at checkout (manual bank / e-wallet). */
+model PaymentMethod {
+  id           String   @id @default(cuid())
+  name         String
+  instructions String? // account name / number / notes shown to the buyer
+  qrImageUrl   String? // optional QR image (served from /uploads)
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  payments Payment[]
+
+  @@index([isActive])
 }
 
 model Session {
@@ -615,6 +685,12 @@ model Variant {
   weightGrams    Int?
   isActive       Boolean      @default(true)
   position       Int          @default(0)
+  // ── Project-kit curation (storefront "Build-a-Project") ──────────────────────
+  // A BUILT variant becomes a curated kit when isProjectKit=true. kitPublished
+  // gates storefront visibility (draft vs live); kitPosition orders the cards.
+  isProjectKit   Boolean      @default(false)
+  kitPublished   Boolean      @default(false)
+  kitPosition    Int          @default(0)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   deletedAt      DateTime?
@@ -627,6 +703,7 @@ model Variant {
   buildOrders  BuildOrder[]
   orderLines   OrderLine[]
   cartLines    CartLine[]
+  buildLines   SavedBuildLine[]
 
   @@index([productId])
 }
@@ -1103,25 +1180,123 @@ model CartLine {
   @@index([variantId])
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Saved builds — a maker's inspiration (pasted list / URL / photo) resolved into
+// catalog variants. Deliberately NOT a BUILT-variant+BOM: those are sellable
+// catalog products; a guest's one-off build must never pollute the catalog.
+// Lines reference existing component variants (null = no confident match).
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum BuildSource {
+  TEXT
+  URL
+  IMAGE
+}
+
+/// Conversation "personality" for the build-assistant chat (see BuildChat).
+enum BuildChatMode {
+  BRAINSTORM
+  GRILL
+  IMPECCABLE
+}
+
+enum BuildChatRole {
+  USER
+  ASSISTANT
+}
+
+model SavedBuild {
+  id           String      @id @default(cuid())
+  title        String
+  sourceType   BuildSource @default(TEXT)
+  sourceRef    String? // original pasted text / url (truncated)
+  sessionToken String? // guest cr_cart token that owns this build
+  userId       String? // stamped when the maker is signed in
+  createdAt    DateTime    @default(now())
+
+  user         User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  lines        SavedBuildLine[]
+  chatMessages BuildChatMessage[] // assistant turns that resolved into this build
+
+  @@index([sessionToken])
+  @@index([userId])
+}
+
+model SavedBuildLine {
+  id         String  @id @default(cuid())
+  buildId    String
+  variantId  String? // null = matcher found no confident match (unmatched line)
+  rawLabel             String // what the source called this part
+  quantity             Int      @default(1)
+  confidence           Float    @default(0) // matcher confidence 0..1
+  note                 String? // substitution / clarification note from the matcher
+  position             Int      @default(0)
+  alternativeVariantIds String[] @default([]) // ranked functional-equivalent variant ids
+
+  build   SavedBuild @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  variant Variant?   @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@index([buildId])
+  @@index([variantId])
+}
+
+/// A persisted build-assistant conversation. Ownership mirrors SavedBuild:
+/// a guest owns by the `cr_cart` sessionToken, a signed-in maker by userId.
+model BuildChat {
+  id           String        @id @default(cuid())
+  title        String        @default("New build chat")
+  mode         BuildChatMode @default(BRAINSTORM)
+  sessionToken String? // guest cr_cart token that owns this chat
+  userId       String? // stamped when the maker is signed in
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  user     User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  messages BuildChatMessage[]
+
+  @@index([sessionToken])
+  @@index([userId])
+}
+
+/// One turn in a BuildChat. An assistant turn that resolved a parts list carries
+/// `buildId`, which the frontend renders as an inline resolved-build card.
+model BuildChatMessage {
+  id        String        @id @default(cuid())
+  chatId    String
+  role      BuildChatRole
+  content   String // the message text
+  buildId   String? // set when this assistant turn resolved a SavedBuild
+  createdAt DateTime      @default(now())
+
+  chat  BuildChat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  build SavedBuild? @relation(fields: [buildId], references: [id], onDelete: SetNull)
+
+  @@index([chatId])
+  @@index([buildId])
+}
+
 model Order {
   id          String       @id @default(cuid())
   orderNumber String       @unique
   userId      String? // null = guest
   branchId    String? // null = web/online channel
   channel     SalesChannel @default(WEB)
+  fulfillmentType FulfillmentType @default(DELIVERY)
   email       String
   status      OrderStatus  @default(PENDING)
   currency    String       @default("PHP")
 
   // shipping address snapshot (denormalized for history)
-  shipName    String?
-  shipLine1   String?
-  shipLine2   String?
-  shipCity    String?
-  shipRegion  String?
-  shipPostal  String?
-  shipCountry String?
-  shipPhone   String?
+  shipName     String?
+  shipLine1    String?
+  shipLine2    String?
+  shipBarangay String?
+  shipCity     String?
+  shipProvince String?
+  shipRegion   String?
+  shipPostal   String?
+  shipCountry  String?
+  shipPhone    String?
 
   // billing address snapshot
   billName    String?
@@ -1242,13 +1417,19 @@ model Payment {
   currency          String        @default("PHP")
   capturedAt        DateTime?
   failureReason     String?
+  proofImageUrl     String? // manual-payment proof image (served from /uploads)
+  reference         String? // manual-payment reference / admin note
+  verifiedAt        DateTime? // when an admin verified the manual proof
+  paymentMethodId   String? // admin-managed PaymentMethod chosen at checkout
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
-  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  refunds Refund[]
+  order         Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+  refunds       Refund[]
 
   @@index([orderId])
+  @@index([paymentMethodId])
 }
 
 model Refund {

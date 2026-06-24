@@ -228,10 +228,7 @@ describe('BomService.explodeBom', () => {
   beforeEach(async () => {
     const prismaStub = makePrismaStub();
     const moduleRef: TestingModule = await Test.createTestingModule({
-      providers: [
-        BomService,
-        { provide: PrismaService, useValue: prismaStub },
-      ],
+      providers: [BomService, { provide: PrismaService, useValue: prismaStub }],
     }).compile();
     service = moduleRef.get(BomService);
   });

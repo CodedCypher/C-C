@@ -62,7 +62,9 @@ export interface CreateTransferResult {
 // stockItem.select used wherever we need to resolve a line's display name/sku/uom.
 const STOCK_ITEM_LABEL_SELECT = {
   unitOfMeasure: true,
-  variant: { select: { sku: true, title: true, product: { select: { title: true } } } },
+  variant: {
+    select: { sku: true, title: true, product: { select: { title: true } } },
+  },
   rawMaterial: { select: { sku: true, name: true } },
 } satisfies Prisma.StockItemSelect;
 
@@ -372,7 +374,9 @@ export class StockTransfersService {
   }
 
   // ── POST /stock-transfers/:id/request ──────────────────────────────────────
-  async requestTransfer(id: string): Promise<{ id: string; status: TransferStatus }> {
+  async requestTransfer(
+    id: string,
+  ): Promise<{ id: string; status: TransferStatus }> {
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.stockTransfer.findUnique({
         where: { id },
@@ -402,7 +406,9 @@ export class StockTransfersService {
   }
 
   // ── POST /stock-transfers/:id/ship ─────────────────────────────────────────
-  async shipTransfer(id: string): Promise<{ id: string; status: TransferStatus }> {
+  async shipTransfer(
+    id: string,
+  ): Promise<{ id: string; status: TransferStatus }> {
     return this.prisma.$transaction(async (tx) => {
       const transfer = await tx.stockTransfer.findUnique({
         where: { id },
@@ -607,7 +613,9 @@ export class StockTransfersService {
   }
 
   // ── POST /stock-transfers/:id/cancel ───────────────────────────────────────
-  async cancelTransfer(id: string): Promise<{ id: string; status: TransferStatus }> {
+  async cancelTransfer(
+    id: string,
+  ): Promise<{ id: string; status: TransferStatus }> {
     return this.prisma.$transaction(async (tx) => {
       const transfer = await tx.stockTransfer.findUnique({
         where: { id },
@@ -632,10 +640,7 @@ export class StockTransfersService {
           fieldError('id', `Transfer "${id}" not found`, 404, 'NotFound'),
         );
       }
-      if (
-        transfer.status === 'RECEIVED' ||
-        transfer.status === 'CANCELLED'
-      ) {
+      if (transfer.status === 'RECEIVED' || transfer.status === 'CANCELLED') {
         throw new ConflictException(
           fieldError(
             'status',

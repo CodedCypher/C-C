@@ -556,7 +556,8 @@ export class BuildOrdersService {
               stockItemId: c.stockItemId,
               warehouseId: bo.warehouseId,
               quantity: consumeQty.toFixed(4),
-              unitCostAtConsume: c.unitCost === null ? null : c.unitCost.toFixed(4),
+              unitCostAtConsume:
+                c.unitCost === null ? null : c.unitCost.toFixed(4),
             },
           });
 
@@ -668,8 +669,7 @@ export class BuildOrdersService {
       );
     }
 
-    const needsRelease =
-      bo.status === 'PLANNED' || bo.status === 'IN_PROGRESS';
+    const needsRelease = bo.status === 'PLANNED' || bo.status === 'IN_PROGRESS';
     const components = needsRelease
       ? await this.bom.bomDirectComponents(bo.bomId)
       : [];

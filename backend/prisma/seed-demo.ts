@@ -7,6 +7,7 @@
  * first. Run: `npm run seed:demo`.
  */
 import 'dotenv/config';
+import * as bcrypt from 'bcrypt';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
 import type {
@@ -442,12 +443,14 @@ async function main() {
   // ── Raw materials + stock (some low) ─────────────────────────────────────────
   console.log('raw materials');
   const rawMaterials = [
-    { name: '10k Resistor', sku: 'RM-R10K', uom: 'EACH', onHand: 4200, rp: 500 },
-    { name: '0.1uF Capacitor', sku: 'RM-CAP01', uom: 'EACH', onHand: 80, rp: 300 }, // LOW
-    { name: 'Solder Wire 0.8mm', sku: 'RM-SOLDER', uom: 'METER', onHand: 12, rp: 25 }, // LOW
-    { name: 'PCB Blank 5x7cm', sku: 'RM-PCB57', uom: 'EACH', onHand: 600, rp: 100 },
-    { name: 'Header Pins 40p', sku: 'RM-HDR40', uom: 'EACH', onHand: 1500, rp: 200 },
+    { name: '10k Resistor', sku: 'RM-R10K', uom: 'EACH', onHand: 4200, rp: 500, cost: 0.5 },
+    { name: '0.1uF Capacitor', sku: 'RM-CAP01', uom: 'EACH', onHand: 80, rp: 300, cost: 0.75 }, // LOW
+    { name: 'Solder Wire 0.8mm', sku: 'RM-SOLDER', uom: 'METER', onHand: 12, rp: 25, cost: 8 }, // LOW
+    { name: 'PCB Blank 5x7cm', sku: 'RM-PCB57', uom: 'EACH', onHand: 600, rp: 100, cost: 25 },
+    { name: 'Header Pins 40p', sku: 'RM-HDR40', uom: 'EACH', onHand: 1500, rp: 200, cost: 12 },
   ] as const;
+  // Capture material stock items by sku for the multi-level BOM chain below.
+  const matStockBySku: Record<string, string> = {};
   for (let i = 0; i < rawMaterials.length; i++) {
     const rm = rawMaterials[i];
     const created = await prisma.rawMaterial.create({
@@ -467,8 +470,10 @@ async function main() {
         incoming: money(0),
         reorderPoint: money(rm.rp),
         reorderQty: money(rm.rp * 4),
+        standardCost: money(rm.cost),
       },
     });
+    matStockBySku[rm.sku] = matStockItem.id;
     // raw materials live mostly in the Main DC
     await seedWarehouseStock(
       matStockItem.id,
@@ -477,6 +482,20 @@ async function main() {
       qcWh.id,
     );
   }
+
+  // ── Admin login (real bcrypt hash so you can sign in to the console) ──────────
+  console.log('admin user');
+  await prisma.user.create({
+    data: {
+      email: 'admin@circuit.com',
+      passwordHash: await bcrypt.hash('password', 10),
+      role: 'ADMIN',
+      status: 'ACTIVE',
+      firstName: 'Ada',
+      lastName: 'Admin',
+      emailVerifiedAt: NOW,
+    },
+  });
 
   // ── Customers (role CUSTOMER) spread across last 90 days ──────────────────────
   console.log('customers');
@@ -695,6 +714,256 @@ async function main() {
         createdAt: daysAgo(10 - i),
         updatedAt: daysAgo(10 - i),
       },
+    });
+  }
+
+  // ── Multi-level BOM chain (materials → sub-assembly → final product) ─────────
+  console.log('multi-level BOM chain');
+  if (allVariants.length >= 2) {
+    const finalVariant = allVariants[allVariants.length - 1];
+    const subVariant = allVariants[allVariants.length - 2];
+
+    async function stockItemForVariant(variantId: string): Promise<string> {
+      const existing = await prisma.stockItem.findFirst({
+        where: { variantId },
+        select: { id: true },
+      });
+      if (existing) return existing.id;
+      const created = await prisma.stockItem.create({
+        data: { kind: 'VARIANT', variantId, unitOfMeasure: 'EACH' },
+        select: { id: true },
+      });
+      return created.id;
+    }
+
+    const subStockId = await stockItemForVariant(subVariant.id);
+    const finalStockId = await stockItemForVariant(finalVariant.id);
+
+    // Both are now manufactured goods.
+    await prisma.variant.update({
+      where: { id: subVariant.id },
+      data: { sourcingType: 'BUILT' },
+    });
+    await prisma.variant.update({
+      where: { id: finalVariant.id },
+      data: { sourcingType: 'BUILT' },
+    });
+
+    // Sub-assembly BOM (v1, active): built purely from raw materials.
+    await prisma.billOfMaterials.create({
+      data: {
+        variantId: subVariant.id,
+        version: 1,
+        isActive: true,
+        notes: 'Sub-assembly: populated control board',
+        lines: {
+          create: [
+            { stockItemId: matStockBySku['RM-PCB57'], quantity: money(1), unit: 'EACH' },
+            { stockItemId: matStockBySku['RM-R10K'], quantity: money(10), unit: 'EACH', scrapPct: money(0.02) },
+            { stockItemId: matStockBySku['RM-CAP01'], quantity: money(4), unit: 'EACH' },
+          ],
+        },
+      },
+    });
+
+    // Final product BOM (v1, active): consumes the sub-assembly + raw materials.
+    const finalBom = await prisma.billOfMaterials.create({
+      data: {
+        variantId: finalVariant.id,
+        version: 1,
+        isActive: true,
+        notes: 'Final assembly: board + headers + solder',
+        lines: {
+          create: [
+            { stockItemId: subStockId, quantity: money(1), unit: 'EACH' },
+            { stockItemId: matStockBySku['RM-HDR40'], quantity: money(2), unit: 'EACH' },
+            { stockItemId: matStockBySku['RM-SOLDER'], quantity: money(0.5), unit: 'METER', scrapPct: money(0.1) },
+          ],
+        },
+      },
+    });
+
+    // A draft build order against the final product, ready to plan/complete.
+    await prisma.buildOrder.create({
+      data: {
+        variantId: finalVariant.id,
+        bomId: finalBom.id,
+        warehouseId: mainWh.id,
+        status: 'DRAFT',
+        qtyPlanned: money(5),
+        qtyProduced: money(0),
+      },
+    });
+
+    // ── Sample stock transfers (DRAFT + REQUESTED) so the list isn't empty ──────
+    console.log('stock transfers');
+    await prisma.stockTransfer.create({
+      data: {
+        transferNumber: 'TRF-SEED1',
+        sourceWarehouseId: mainWh.id,
+        destWarehouseId: qcWh.id,
+        status: 'DRAFT',
+        notes: 'Replenish QC backroom resistors',
+        lines: {
+          create: [
+            { stockItemId: matStockBySku['RM-R10K'], quantity: money(200) },
+            { stockItemId: matStockBySku['RM-HDR40'], quantity: money(50) },
+          ],
+        },
+      },
+    });
+    await prisma.stockTransfer.create({
+      data: {
+        transferNumber: 'TRF-SEED2',
+        sourceWarehouseId: mainWh.id,
+        destWarehouseId: cebuWh.id,
+        status: 'REQUESTED',
+        notes: 'Cebu store request',
+        lines: {
+          create: [{ stockItemId: finalStockId, quantity: money(3) }],
+        },
+      },
+    });
+  }
+
+  // ── Customer-facing project KITS (BOM lines = purchasable component variants) ─
+  // The "build-a-project" kits the storefront resolves into a ready-to-checkout
+  // cart. Unlike the multi-level chain above (raw materials, not sellable), every
+  // BOM line here points at an EXISTING purchasable variant's StockItem, so the
+  // public /storefront/projects endpoint can resolve them to in-stock, priced
+  // parts and one-click add them to the guest cart.
+  console.log('customer project kits');
+
+  /** Resolve a sellable variant's VARIANT StockItem id by SKU (must already exist). */
+  async function variantStockIdBySku(sku: string): Promise<string> {
+    const v = await prisma.variant.findUnique({
+      where: { sku },
+      select: { stockItem: { select: { id: true } } },
+    });
+    if (!v?.stockItem) {
+      throw new Error(`kit seed: no StockItem for variant ${sku}`);
+    }
+    return v.stockItem.id;
+  }
+
+  const kitBlueprints = [
+    {
+      title: 'Weather Station Starter Kit',
+      slug: 'weather-station-starter-kit',
+      brandIdx: 0,
+      image: '/products/rpi5.jpg',
+      price: 4990,
+      parts: [
+        { sku: 'RPI5-4GB', qty: 1 },
+        { sku: 'DHT22', qty: 1 },
+        { sku: 'BME280', qty: 1 },
+        { sku: 'JMP-120', qty: 1 },
+        { sku: 'GPIO-RBN-40', qty: 1 },
+        { sku: 'PSU-USBC-5V3A', qty: 1 },
+      ],
+    },
+    {
+      title: 'Arduino Distance-Sensor Kit',
+      slug: 'arduino-distance-sensor-kit',
+      brandIdx: 1,
+      image: '/products/uno-ch340.jpg',
+      price: 1890,
+      parts: [
+        { sku: 'ARD-UNO-R4', qty: 1 },
+        { sku: 'HCSR04', qty: 2 },
+        { sku: 'JMP-120', qty: 1 },
+      ],
+    },
+  ] as const;
+
+  const kitsCategory = categories[5]; // 'Kits'
+  for (const kit of kitBlueprints) {
+    const kitProduct = await prisma.product.create({
+      data: {
+        title: kit.title,
+        slug: kit.slug,
+        status: 'ACTIVE',
+        brandId: brands[kit.brandIdx].id,
+        description: `${kit.title} — everything you need to build the project, resolved from its bill of materials.`,
+        categoryLinks: { create: [{ categoryId: kitsCategory.id }] },
+      },
+    });
+    const kitVariant = await prisma.variant.create({
+      data: {
+        productId: kitProduct.id,
+        sku: `KIT-${kit.slug.toUpperCase().replace(/[^A-Z0-9]+/g, '-')}`,
+        title: null,
+        price: money(kit.price),
+        sourcingType: 'BUILT',
+        position: 0,
+        // Surface this BUILT product on the storefront "Build-a-Project" page.
+        isProjectKit: true,
+        kitPublished: true,
+      },
+    });
+    await prisma.productImage.create({
+      data: {
+        productId: kitProduct.id,
+        variantId: kitVariant.id,
+        url: kit.image,
+        alt: kit.title,
+        position: 0,
+        isPrimary: true,
+      },
+    });
+    // The assembled kit is build-to-order: a StockItem with no web stock.
+    await prisma.stockItem.create({
+      data: { kind: 'VARIANT', variantId: kitVariant.id, unitOfMeasure: 'EACH' },
+    });
+
+    // Active BOM whose lines are purchasable component variants (EACH, integer qty).
+    const lines = await Promise.all(
+      kit.parts.map(async (p) => ({
+        stockItemId: await variantStockIdBySku(p.sku),
+        quantity: money(p.qty),
+        unit: 'EACH' as const,
+      })),
+    );
+    await prisma.billOfMaterials.create({
+      data: {
+        variantId: kitVariant.id,
+        version: 1,
+        isActive: true,
+        notes: `${kit.title} parts list`,
+        lines: { create: lines },
+      },
+    });
+  }
+
+  // Demo stock: make every kit component variant reliably in-stock at the web WH
+  // (Main DC) — EXCEPT one intentionally OUT to showcase the "found everything
+  // except X" partial-resolution story. Seed buckets are pseudo-random, so set
+  // these explicitly and collapse to a single warehouse row (Σ WSI == rollup).
+  const KIT_OUT_OF_STOCK_SKU = 'BME280';
+  const kitComponentSkus = [
+    ...new Set(kitBlueprints.flatMap((k) => k.parts.map((p) => p.sku))),
+  ];
+  for (const sku of kitComponentSkus) {
+    const onHand = sku === KIT_OUT_OF_STOCK_SKU ? 0 : 200;
+    const stockItemId = await variantStockIdBySku(sku);
+    await prisma.warehouseStockItem.deleteMany({
+      where: { stockItemId, warehouseId: { not: mainWh.id } },
+    });
+    await prisma.warehouseStockItem.upsert({
+      where: {
+        stockItemId_warehouseId: { stockItemId, warehouseId: mainWh.id },
+      },
+      update: { onHand: money(onHand), reserved: money(0) },
+      create: {
+        stockItemId,
+        warehouseId: mainWh.id,
+        onHand: money(onHand),
+        reserved: money(0),
+      },
+    });
+    await prisma.stockItem.update({
+      where: { id: stockItemId },
+      data: { onHand: money(onHand), reserved: money(0) },
     });
   }
 

@@ -1,17 +1,20 @@
 /**
  * circuit.rocks — warehouses feature: list page.
  *
- * A simple, read-only list of warehouses. Data comes from `useWarehouses()`
- * (no filters, no pagination — the endpoint returns a plain array). Renders the
- * shared PageHeader + DataTable; TableSkeleton while loading; EmptyState when
- * empty or on error.
+ * A list of warehouses. Data comes from `useWarehouses()` (no filters, no
+ * pagination — the endpoint returns a plain array). A "New warehouse" header
+ * action opens the create Sheet; each row's code/name links to the detail route
+ * `/warehouses/$warehouseId`. Renders the shared PageHeader + DataTable;
+ * TableSkeleton while loading; EmptyState when empty or on error.
  *
  * CANONICAL PATTERN for a list page:
  *   - read the hook's `{ data, isLoading, isError }`
  *   - render TableSkeleton while loading, the shared DataTable otherwise
  */
 
-import { Warehouse } from "lucide-react";
+import { useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { Plus, Warehouse } from "lucide-react";
 
 import {
   DataTable,
@@ -21,28 +24,44 @@ import {
   type Column,
 } from "~/components/shared";
 import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
 import { useWarehouses } from "../hooks/use-warehouses";
-import type { WarehouseRow } from "../types/warehouses.types";
+import { warehouseTypeLabel, type WarehouseRow } from "../types/warehouses.types";
+import { WarehouseFormSheet } from "../components/warehouse-form-sheet";
 
 const columns: Column<WarehouseRow>[] = [
   {
     key: "code",
     header: "Code",
     render: (r) => (
-      <span className="font-mono text-[0.8125rem] text-ink">{r.code}</span>
+      <Link
+        to="/warehouses/$warehouseId"
+        params={{ warehouseId: r.id }}
+        className="font-mono text-[0.8125rem] text-ink underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ink"
+      >
+        {r.code}
+      </Link>
     ),
   },
   {
     key: "name",
     header: "Name",
-    render: (r) => <span className="font-medium text-ink">{r.name}</span>,
+    render: (r) => (
+      <Link
+        to="/warehouses/$warehouseId"
+        params={{ warehouseId: r.id }}
+        className="font-medium text-ink underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ink"
+      >
+        {r.name}
+      </Link>
+    ),
   },
   {
     key: "type",
     header: "Type",
     render: (r) => (
       <span className="font-mono text-[0.75rem] uppercase tracking-[0.06em] text-smoke">
-        {r.type}
+        {warehouseTypeLabel(r.type)}
       </span>
     ),
   },
@@ -63,12 +82,25 @@ const columns: Column<WarehouseRow>[] = [
 
 export function WarehousesListPage() {
   const { data, isLoading, isError } = useWarehouses();
+  const navigate = useNavigate();
+  const [createOpen, setCreateOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Warehouses"
         description="Stock locations across the network. The web-default warehouse fulfils online orders."
+        actions={
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus className="size-4" aria-hidden="true" />
+            New warehouse
+          </Button>
+        }
       />
 
       {isLoading ? (
@@ -88,11 +120,34 @@ export function WarehousesListPage() {
             <EmptyState
               icon={<Warehouse className="size-6" aria-hidden="true" />}
               title="No warehouses yet"
-              description="Warehouses you create will appear here."
+              description="Create your first warehouse to start tracking stock by location."
+              action={
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <Plus className="size-4" aria-hidden="true" />
+                  New warehouse
+                </Button>
+              }
             />
           }
         />
       )}
+
+      <WarehouseFormSheet
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        mode="create"
+        onCreated={(id) =>
+          navigate({
+            to: "/warehouses/$warehouseId",
+            params: { warehouseId: id },
+          })
+        }
+      />
     </div>
   );
 }

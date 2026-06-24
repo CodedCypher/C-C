@@ -87,6 +87,7 @@ export interface InventoryOption {
   sku: string;
   uom: string;
   standardCost: number | null;
+  price: number | null; // variant sale price (null for raw materials)
 }
 
 @Injectable()
@@ -99,7 +100,10 @@ export class InventoryService {
   // ── GET /inventory/options ─────────────────────────────────────────────────
   // Lightweight pickable list of stock items (by stockItemId) for transfer-line
   // and BOM-line selectors. Optional kind filter (VARIANT|MATERIAL); capped at 50.
-  async options(params: { q?: string; kind?: string }): Promise<InventoryOption[]> {
+  async options(params: {
+    q?: string;
+    kind?: string;
+  }): Promise<InventoryOption[]> {
     const q = params.q?.trim();
     const where: Prisma.StockItemWhereInput = {};
     if (params.kind === 'VARIANT' || params.kind === 'MATERIAL') {
@@ -109,7 +113,9 @@ export class InventoryService {
       where.OR = [
         { variant: { sku: { contains: q, mode: 'insensitive' } } },
         { variant: { title: { contains: q, mode: 'insensitive' } } },
-        { variant: { product: { title: { contains: q, mode: 'insensitive' } } } },
+        {
+          variant: { product: { title: { contains: q, mode: 'insensitive' } } },
+        },
         { rawMaterial: { sku: { contains: q, mode: 'insensitive' } } },
         { rawMaterial: { name: { contains: q, mode: 'insensitive' } } },
       ];
@@ -124,7 +130,12 @@ export class InventoryService {
         unitOfMeasure: true,
         standardCost: true,
         variant: {
-          select: { sku: true, title: true, product: { select: { title: true } } },
+          select: {
+            sku: true,
+            title: true,
+            price: true,
+            product: { select: { title: true } },
+          },
         },
         rawMaterial: { select: { sku: true, name: true } },
       },
@@ -144,11 +155,12 @@ export class InventoryService {
       }
       return {
         stockItemId: s.id,
-        kind: s.kind as 'VARIANT' | 'MATERIAL',
+        kind: s.kind,
         name,
         sku,
         uom: s.unitOfMeasure,
         standardCost: s.standardCost === null ? null : toNum(s.standardCost),
+        price: s.variant?.price != null ? toNum(s.variant.price) : null,
       };
     });
   }
@@ -243,7 +255,7 @@ export class InventoryService {
         stockItemId: s.id,
         name,
         sku,
-        kind: s.kind as 'VARIANT' | 'MATERIAL',
+        kind: s.kind,
         uom: s.unitOfMeasure,
         onHand,
         reserved,
@@ -355,7 +367,7 @@ export class InventoryService {
         stockItemId: s.id,
         name,
         sku,
-        kind: s.kind as 'VARIANT' | 'MATERIAL',
+        kind: s.kind,
         uom: s.unitOfMeasure,
         onHand,
         reserved,

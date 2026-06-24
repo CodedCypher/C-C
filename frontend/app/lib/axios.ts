@@ -36,6 +36,17 @@ export const api: AxiosInstance = axios.create({
   },
 });
 
+/**
+ * Resolve a backend-served asset path (e.g. an uploaded proof image at
+ * `/uploads/...`) to an absolute URL. The backend serves these on its own
+ * origin (port 3000), not the SPA's, so root-relative paths must be prefixed
+ * with the API base. Absolute URLs are returned unchanged.
+ */
+export function assetUrl(path: string): string {
+  if (/^https?:\/\//.test(path)) return path;
+  return `${API_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+}
+
 /* ------------------------------------------------------------------ *
  * Single-flight 401 → /auth/refresh → retry-once interceptor
  * ------------------------------------------------------------------ */
@@ -87,7 +98,12 @@ api.interceptors.response.use(
     try {
       await runRefresh();
     } catch {
-      redirectToLogin();
+      // The `/auth/me` probe legitimately 401s for anonymous visitors on public
+      // pages (storefront). Treat that as "not signed in" (caller catches → null)
+      // instead of hard-redirecting them to /login. Only genuine protected-resource
+      // calls bounce to login.
+      const isMeProbe = original.url?.includes("/auth/me");
+      if (!isMeProbe) redirectToLogin();
       return Promise.reject(error);
     }
     // Refresh rotated the cookies; replay the original request once.

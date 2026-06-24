@@ -3,10 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import type { Request } from 'express';
 import { ACCESS_COOKIE } from '../auth.constants';
-import type {
-  AccessTokenPayload,
-  PublicUser,
-} from '../auth.service';
+import type { AccessTokenPayload, PublicUser } from '../auth.service';
 
 /** Reads the access JWT out of the `cr_at` cookie. */
 function cookieExtractor(req: Request): string | null {

@@ -1,9 +1,14 @@
 import {
+  ArrowLeftRight,
+  Blocks,
   Boxes,
   Building2,
   ClipboardList,
+  CreditCard,
   FolderTree,
+  Layers,
   LayoutDashboard,
+  ListTree,
   Package,
   RotateCcw,
   Settings,
@@ -54,6 +59,7 @@ const NAV: NavGroup[] = [
     heading: "Commerce",
     items: [
       { label: "Orders", to: "/orders", icon: ShoppingCart },
+      { label: "Payment Methods", to: "/payment-methods", icon: CreditCard },
       { label: "Returns", to: "/returns", icon: RotateCcw, soon: true },
       { label: "Discounts", to: "/discounts", icon: Tag, soon: true },
     ],
@@ -62,7 +68,9 @@ const NAV: NavGroup[] = [
     heading: "Catalog",
     items: [
       { label: "Products", to: "/products", icon: Package },
+      { label: "Project Kits", to: "/project-kits", icon: Blocks },
       { label: "Inventory", to: "/inventory", icon: Boxes },
+      { label: "Raw Materials", to: "/raw-materials", icon: Layers },
       { label: "Categories", to: "/categories", icon: FolderTree, soon: true },
       { label: "Brands", to: "/brands", icon: Tags, soon: true },
     ],
@@ -72,6 +80,7 @@ const NAV: NavGroup[] = [
     items: [
       { label: "Warehouses", to: "/warehouses", icon: Warehouse },
       { label: "Branches", to: "/branches", icon: Building2 },
+      { label: "Transfers", to: "/transfers", icon: ArrowLeftRight },
       { label: "Suppliers", to: "/suppliers", icon: Truck, soon: true },
       {
         label: "Purchase Orders",
@@ -79,7 +88,13 @@ const NAV: NavGroup[] = [
         icon: ClipboardList,
         soon: true,
       },
-      { label: "Work Orders", to: "/work-orders", icon: Wrench, soon: true },
+    ],
+  },
+  {
+    heading: "Manufacturing",
+    items: [
+      { label: "BOMs", to: "/boms", icon: ListTree },
+      { label: "Build Orders", to: "/build-orders", icon: Wrench },
     ],
   },
   {

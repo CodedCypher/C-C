@@ -17,7 +17,10 @@ import {
   fieldError,
   deriveSlug,
 } from '../common/structured-error';
-import { WarehousesService, WarehouseRow } from '../warehouses/warehouses.service';
+import {
+  WarehousesService,
+  WarehouseRow,
+} from '../warehouses/warehouses.service';
 
 export interface ProductsResult {
   rows: {
@@ -126,7 +129,7 @@ export class ProductsService {
         title: p.title,
         slug: p.slug,
         brand: p.brand?.name ?? null,
-        status: p.status as 'DRAFT' | 'ACTIVE' | 'ARCHIVED',
+        status: p.status,
         variantCount: p.variants.length,
         priceMin,
         priceMax,

@@ -49,11 +49,10 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     profile: Profile,
     done: VerifyCallback,
   ): void {
-    const email =
-      profile.emails?.[0]?.value ?? `${profile.id}@google.local`;
+    const email = profile.emails?.[0]?.value ?? `${profile.id}@google.local`;
     const emailVerified = Boolean(
       (profile.emails?.[0] as { verified?: boolean } | undefined)?.verified ??
-        false,
+      false,
     );
     const user: GoogleUserProfile = {
       email,

@@ -7,11 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  UserRole,
-  UserStatus,
-  type User,
-} from '../generated/prisma/client';
+import { UserRole, UserStatus, type User } from '../generated/prisma/client';
 import { ACCESS_TOKEN_TTL, REFRESH_TOKEN_TTL_MS } from './auth.constants';
 
 const BCRYPT_SALT_ROUNDS = 10;

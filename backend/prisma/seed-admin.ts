@@ -17,8 +17,8 @@ const prisma = new PrismaClient({
 const BCRYPT_SALT_ROUNDS = 10; // matches AuthService
 
 async function main() {
-  const email = (process.env.ADMIN_EMAIL ?? 'admin@circuit.rocks').toLowerCase().trim();
-  const password = process.env.ADMIN_PASSWORD ?? 'admin12345';
+  const email = (process.env.ADMIN_EMAIL ?? 'admin@circuit.com').toLowerCase().trim();
+  const password = process.env.ADMIN_PASSWORD ?? 'password';
   const passwordHash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 
   const user = await prisma.user.upsert({
