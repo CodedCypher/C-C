@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -6,13 +7,22 @@ import {
   Param,
   Patch,
   Post,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../generated/prisma/client';
 import { structuredValidationPipe } from '../common/validation';
+import { fieldError } from '../common/structured-error';
+import {
+  KIT_IMAGE_DIR,
+  kitImageMulterOptions,
+  uploadUrl,
+} from '../common/uploads';
 import { ProjectKitsService } from './project-kits.service';
 import { CreateProjectKitDto } from './dto/create-project-kit.dto';
 import {
@@ -47,6 +57,18 @@ export class ProjectKitsController {
   @Post()
   create(@Body(structuredValidationPipe()) dto: CreateProjectKitDto) {
     return this.kits.create(dto);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.STAFF, UserRole.SUPERADMIN)
+  @Post('image')
+  @UseInterceptors(FileInterceptor('file', kitImageMulterOptions))
+  uploadImage(@UploadedFile() file?: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException(
+        fieldError('file', 'Image is required', 400, 'ValidationError'),
+      );
+    }
+    return { url: uploadUrl(KIT_IMAGE_DIR, file.filename) };
   }
 
   @Roles(UserRole.ADMIN, UserRole.STAFF, UserRole.SUPERADMIN)

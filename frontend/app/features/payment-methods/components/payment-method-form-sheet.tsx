@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 
 import { Button } from "~/components/ui/button";
+import { Dropzone } from "~/components/ui/dropzone";
 import {
   Sheet,
   SheetContent,
@@ -34,8 +35,6 @@ import {
   type FieldErrors,
 } from "./fields";
 
-/** Backend static-file origin (QR images served under /uploads on the API host). */
-const FILE_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
 interface FormState {
   name: string;
@@ -134,9 +133,7 @@ export function PaymentMethodFormSheet({
     }
   }
 
-  async function handleQr(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
+  async function handleQr(file: File | null) {
     if (!file || !initial) return;
     setFormErrors([]);
     try {
@@ -220,31 +217,12 @@ export function PaymentMethodFormSheet({
                 Save the method first, then re-open it to upload a QR image.
               </p>
             ) : (
-              <>
-                {qrUrl ? (
-                  <img
-                    src={`${FILE_BASE}${qrUrl}`}
-                    alt="Payment QR"
-                    className="h-40 w-40 border-2 border-line object-contain"
-                  />
-                ) : (
-                  <p className="font-mono text-[0.6875rem] text-smoke">
-                    No QR image uploaded.
-                  </p>
-                )}
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={handleQr}
-                  disabled={uploadQr.isPending}
-                  className="font-mono text-[0.8125rem] text-ink file:mr-3 file:border-2 file:border-line file:bg-paper-2 file:px-3 file:py-1.5 file:font-mono file:text-[0.75rem] file:text-ink"
-                />
-                {uploadQr.isPending ? (
-                  <span className="font-mono text-[0.6875rem] text-smoke">
-                    Uploading…
-                  </span>
-                ) : null}
-              </>
+              <Dropzone
+                value={qrUrl || null}
+                onFile={handleQr}
+                loading={uploadQr.isPending}
+                hint="Upload or replace the QR customers scan to pay."
+              />
             )}
           </div>
         </div>

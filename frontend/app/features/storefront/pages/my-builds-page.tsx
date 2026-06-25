@@ -70,7 +70,7 @@ export function MyBuildsPage() {
             Saved builds
           </h1>
           <p className="max-w-[60ch] text-[1rem] leading-[1.6] text-smoke">
-            Every parts list, photo, or link you resolve is saved here — reopen,
+            Every parts list or photo you resolve is saved here — reopen,
             reshare, or clear them out.
           </p>
         </div>
@@ -172,8 +172,8 @@ function EmptyState() {
     <div className="flex flex-col items-center gap-4 border-2 border-dashed border-line bg-paper px-6 py-16 text-center">
       <Package size={32} strokeWidth={1.5} className="text-smoke" />
       <p className="max-w-[42ch] text-[0.9375rem] leading-[1.6] text-smoke">
-        No saved builds yet. Paste a parts list, snap a schematic, or drop a
-        tutorial link to resolve your first build.
+        No saved builds yet. Paste a parts list or snap a schematic to resolve
+        your first build.
       </p>
       <Link to="/build">
         <Button variant="primary" size="lg">

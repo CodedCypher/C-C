@@ -24,7 +24,6 @@ import {
   type CatalogEntry,
   type MatchedLine,
 } from './build-matcher.service';
-import { UrlFetcherService } from './url-fetcher.service';
 
 /* ------------------------------------------------------------------ *
  * Public response shapes
@@ -287,11 +286,17 @@ type CartWithLines = Prisma.CartGetPayload<{ include: typeof cartLineInclude }>;
 // projectLineSelect / ProjectLine / WebStockInput moved to ./kit-projection
 // (shared with the admin project-kits module). See imports at top of file.
 
-/** The three inspiration doors that converge on the same resolve pipeline. */
+/** The two inspiration doors that converge on the same resolve pipeline. */
 export type ResolveBuildInput =
   | { kind: 'text'; text: string }
-  | { kind: 'url'; url: string }
-  | { kind: 'image'; data: string; mimeType: string; filename: string };
+  | {
+      kind: 'image';
+      data: string;
+      mimeType: string;
+      filename: string;
+      /** Root-relative URL of the persisted photo, when stored (build-chat). */
+      imageUrl?: string;
+    };
 
 /** Door-specific "we found nothing" 400, mapped onto the matching input field. */
 function emptyMatchError(input: ResolveBuildInput): BadRequestException {
@@ -301,15 +306,10 @@ function emptyMatchError(input: ResolveBuildInput): BadRequestException {
           'image',
           "Couldn't read any parts from that photo — try a clearer shot, or paste the list as text.",
         ] as const)
-      : input.kind === 'url'
-        ? ([
-            'url',
-            "Couldn't find any parts on that page — paste the parts list as text instead.",
-          ] as const)
-        : ([
-            'text',
-            "Couldn't find any parts in that text — try a clearer parts list.",
-          ] as const);
+      : ([
+          'text',
+          "Couldn't find any parts in that text — try a clearer parts list.",
+        ] as const);
   return new BadRequestException(fieldError(field, hint, 400, 'BadRequest'));
 }
 
@@ -318,7 +318,6 @@ export class StorefrontService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly matcher: BuildMatcherService,
-    private readonly urlFetcher: UrlFetcherService,
   ) {}
 
   /** available = onHand − reserved at the web warehouse, plus its IN_STOCK/LOW/OUT state. */
@@ -879,17 +878,17 @@ export class StorefrontService {
   }
 
   /**
-   * Run the right matcher for the inspiration door (text / url / photo) and
-   * report which source it was so the SavedBuild records its provenance. All
-   * three converge on the same `MatchedLine[]` that the rest of resolveBuild
-   * persists and re-resolves identically.
+   * Run the right matcher for the inspiration door (text / photo) and report
+   * which source it was so the SavedBuild records its provenance. Both converge
+   * on the same `MatchedLine[]` that the rest of resolveBuild persists and
+   * re-resolves identically.
    */
   private async matchInput(
     input: ResolveBuildInput,
     catalog: CatalogEntry[],
   ): Promise<{
     matched: MatchedLine[];
-    sourceType: 'TEXT' | 'URL' | 'IMAGE';
+    sourceType: 'TEXT' | 'IMAGE';
     sourceRef: string;
   }> {
     if (input.kind === 'image') {
@@ -901,15 +900,6 @@ export class StorefrontService {
         matched,
         sourceType: 'IMAGE',
         sourceRef: input.filename.slice(0, 200),
-      };
-    }
-    if (input.kind === 'url') {
-      const text = await this.urlFetcher.fetchInspiration(input.url);
-      const matched = await this.matcher.match(text, catalog);
-      return {
-        matched,
-        sourceType: 'URL',
-        sourceRef: input.url.slice(0, 2048),
       };
     }
     const matched = await this.matcher.match(input.text, catalog);

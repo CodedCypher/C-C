@@ -14,6 +14,7 @@ import {
   RawMaterialsResult,
   RawMaterialDetail,
   CreateRawMaterialResult,
+  PublishRawMaterialResult,
 } from './raw-materials.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -23,6 +24,7 @@ import {
   CreateRawMaterialDto,
   UpdateRawMaterialDto,
 } from './dto/create-raw-material.dto';
+import { PublishRawMaterialDto } from './dto/publish-raw-material.dto';
 import { structuredValidationPipe } from '../common/validation';
 
 @Controller('raw-materials')
@@ -73,5 +75,14 @@ export class RawMaterialsController {
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   deleteRawMaterial(@Param('id') id: string): Promise<{ id: string }> {
     return this.rawMaterialsService.deleteRawMaterial(id);
+  }
+
+  @Post(':id/publish')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  publishRawMaterial(
+    @Param('id') id: string,
+    @Body(structuredValidationPipe()) dto: PublishRawMaterialDto,
+  ): Promise<PublishRawMaterialResult> {
+    return this.rawMaterialsService.publishAsProduct(id, dto);
   }
 }

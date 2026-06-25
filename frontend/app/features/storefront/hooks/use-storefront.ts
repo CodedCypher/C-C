@@ -37,7 +37,6 @@ import {
   removeCartLine,
   resolveBuild,
   resolveBuildImage,
-  resolveBuildUrl,
   sendBuildChat,
   setDefaultMyAddress,
   updateCartLine,
@@ -140,14 +139,6 @@ function onBuildResolved(build: { id: string }) {
 export function useResolveBuild() {
   return useMutation({
     mutationFn: (text: string) => resolveBuild(text),
-    onSuccess: onBuildResolved,
-  });
-}
-
-/** Resolve a tutorial/blog link into a persisted, shareable build. */
-export function useResolveBuildUrl() {
-  return useMutation({
-    mutationFn: (url: string) => resolveBuildUrl(url),
     onSuccess: onBuildResolved,
   });
 }

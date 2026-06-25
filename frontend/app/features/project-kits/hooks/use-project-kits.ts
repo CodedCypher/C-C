@@ -12,6 +12,7 @@ import {
   removeKit,
   setKitPublished,
   updateProjectKit,
+  uploadProjectKitImage,
   type CreateProjectKitBody,
   type UpdateProjectKitBody,
 } from "../api/project-kits.api";
@@ -45,6 +46,12 @@ export function useCreateProjectKit() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: projectKitKeys.lists() });
     },
+  });
+}
+
+export function useUploadKitImage() {
+  return useMutation({
+    mutationFn: (file: File) => uploadProjectKitImage(file),
   });
 }
 

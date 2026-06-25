@@ -31,7 +31,12 @@ const inStockLine = {
       price: 100,
       isActive: true,
       deletedAt: null,
-      product: { slug: 'part-in', status: 'ACTIVE', title: 'In-stock part', images: [] },
+      product: {
+        slug: 'part-in',
+        status: 'ACTIVE',
+        title: 'In-stock part',
+        images: [],
+      },
     },
   },
 };
@@ -53,7 +58,12 @@ const oosLine = {
       price: 50,
       isActive: true,
       deletedAt: null,
-      product: { slug: 'part-oos', status: 'ACTIVE', title: 'OOS part', images: [] },
+      product: {
+        slug: 'part-oos',
+        status: 'ACTIVE',
+        title: 'OOS part',
+        images: [],
+      },
     },
   },
 };
@@ -136,15 +146,16 @@ describe('ProjectKitsService', () => {
       await expect(svc.setPublished('kit-1', true)).rejects.toBeInstanceOf(
         BadRequestException,
       );
-      expect((prisma.variant.update as jest.Mock)).not.toHaveBeenCalled();
+      expect(prisma.variant.update as jest.Mock).not.toHaveBeenCalled();
     });
 
     it('publishes a kit that has parts', async () => {
       const prisma = makePrisma({
         variant: {
-          findFirst: jest
-            .fn()
-            .mockResolvedValue({ id: 'kit-1', boms: [{ lines: [inStockLine] }] }),
+          findFirst: jest.fn().mockResolvedValue({
+            id: 'kit-1',
+            boms: [{ lines: [inStockLine] }],
+          }),
           update: jest.fn().mockResolvedValue({}),
         },
       });
@@ -220,7 +231,7 @@ describe('ProjectKitsService', () => {
           title: 'Bad Kit',
           kitPrice: '100',
           parts: [{ stockItemId: 'raw-1', quantity: '1' }],
-        } as never),
+        }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
   });

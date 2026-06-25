@@ -30,6 +30,7 @@ import { useDeleteRawMaterial } from "../hooks/use-delete-raw-material";
 import { useRawMaterial } from "../hooks/use-raw-material";
 import type { RawMaterialDetail } from "../types/raw-materials.types";
 import { DetailRow, labelClass } from "./fields";
+import { RawMaterialPublishSection } from "./raw-material-publish-section";
 
 export interface RawMaterialDetailSheetProps {
   /** The selected material id, or null when nothing is open. */
@@ -315,6 +316,8 @@ export function RawMaterialDetailSheet({
         {/* ── Footer actions ── */}
         {data ? (
           <div className="mt-auto flex flex-col gap-3 border-t-2 border-line p-6">
+            <RawMaterialPublishSection material={data} />
+
             {deleteError ? (
               <p className="font-mono text-[0.75rem] leading-snug text-soldout">
                 {deleteError}

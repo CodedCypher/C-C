@@ -372,6 +372,8 @@ export const buildChatMessageSchema = z.object({
   id: z.string(),
   role: buildChatRoleSchema,
   content: z.string(),
+  /** Root-relative URL of an attached photo (build-from-photo door). */
+  imageUrl: z.string().nullable().optional(),
   build: buildDetailSchema.nullable(),
   createdAt: z.string(),
 });

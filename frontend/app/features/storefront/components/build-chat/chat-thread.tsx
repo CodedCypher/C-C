@@ -8,6 +8,7 @@
 import { useEffect, useRef } from "react";
 import { Bot, User } from "lucide-react";
 
+import { assetUrl } from "~/lib/axios";
 import type { BuildChatMessage } from "../../types/storefront.types";
 import { ResolvedBuildCard } from "./resolved-build-card";
 
@@ -59,6 +60,15 @@ function MessageBubble({ message }: { message: BuildChatMessage }) {
           isUser ? "items-end" : "items-start"
         } ${message.build ? "w-full" : "max-w-[85%]"}`}
       >
+        {message.imageUrl && (
+          <div className="overflow-hidden border-2 border-line shadow-brutal">
+            <img
+              src={assetUrl(message.imageUrl)}
+              alt="Attached photo"
+              className="max-h-64 w-auto max-w-full bg-paper-2 object-contain"
+            />
+          </div>
+        )}
         {message.content && (
           <div
             className={`whitespace-pre-wrap border-2 border-line px-4 py-2.5 font-sans text-[0.9375rem] leading-[1.55] ${

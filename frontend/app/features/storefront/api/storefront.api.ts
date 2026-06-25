@@ -87,12 +87,6 @@ export async function resolveBuild(text: string): Promise<BuildDetail> {
   return buildDetailSchema.parse(res.data);
 }
 
-/** POST /storefront/builds/resolve — resolve a tutorial/blog link into a saved build. */
-export async function resolveBuildUrl(url: string): Promise<BuildDetail> {
-  const res = await api.post("/storefront/builds/resolve", { url });
-  return buildDetailSchema.parse(res.data);
-}
-
 /** POST /storefront/builds/resolve-image — resolve a schematic/BOM photo (multipart). */
 export async function resolveBuildImage(file: File): Promise<BuildDetail> {
   const form = new FormData();
@@ -125,7 +119,6 @@ export interface SendBuildChatArgs {
   chatId?: string;
   mode: BuildChatMode;
   text?: string;
-  url?: string;
   image?: File;
 }
 
@@ -143,7 +136,6 @@ export async function sendBuildChat(
     form.append("mode", args.mode);
     if (args.chatId) form.append("chatId", args.chatId);
     if (args.text) form.append("text", args.text);
-    if (args.url) form.append("url", args.url);
     form.append("image", args.image);
     res = await api.post("/storefront/build-chats", form);
   } else {
@@ -151,7 +143,6 @@ export async function sendBuildChat(
       mode: args.mode,
       chatId: args.chatId,
       text: args.text,
-      url: args.url,
     });
   }
   return sendBuildChatResponseSchema.parse(res.data);

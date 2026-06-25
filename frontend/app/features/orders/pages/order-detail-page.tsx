@@ -41,6 +41,7 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
+import { Dropzone } from "~/components/ui/dropzone";
 import {
   Sheet,
   SheetContent,
@@ -439,15 +440,12 @@ export function OrderDetailPage() {
 
             {showPaymentControls && (
               <div className="mt-2 flex flex-col gap-3 border-t-2 border-line pt-4">
-                <label className="flex flex-col gap-1.5">
-                  <span className={labelClass}>Proof image (JPG/PNG/WEBP)</span>
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                    className="font-mono text-[0.75rem] text-ink file:mr-3 file:cursor-pointer file:border-2 file:border-line file:bg-paper file:px-3 file:py-1.5 file:font-mono file:text-[0.6875rem] file:font-bold file:uppercase file:text-ink"
-                  />
-                </label>
+                <Dropzone
+                  label="Proof image (JPG/PNG/WEBP)"
+                  value={file}
+                  onFile={setFile}
+                  loading={upload.isPending}
+                />
                 <label className="flex flex-col gap-1.5">
                   <span className={labelClass}>Reference / note (optional)</span>
                   <input

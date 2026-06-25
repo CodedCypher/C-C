@@ -17,7 +17,11 @@ import type { Request, Response } from 'express';
 
 import { structuredValidationPipe } from '../common/validation';
 import { fieldError } from '../common/structured-error';
-import { buildImageMulterOptions } from '../common/uploads';
+import {
+  BUILD_CHAT_DIR,
+  buildImageMulterOptions,
+  writeUploadBuffer,
+} from '../common/uploads';
 import { ACCESS_COOKIE } from '../auth/auth.constants';
 import {
   BuildChatService,
@@ -65,7 +69,7 @@ export class BuildChatController {
 
   /**
    * Send one turn (lazy-creates the chat). Multipart-capable: an attached `image`
-   * file part is the photo door; otherwise `url` wins over `text`. Mirrors the
+   * file part is the photo door; otherwise the turn is `text`. Mirrors the
    * `checkout` endpoint's multipart + DTO + cookie handling.
    */
   @Post('build-chats')
@@ -82,16 +86,20 @@ export class BuildChatController {
           data: file.buffer.toString('base64'),
           mimeType: file.mimetype,
           filename: file.originalname || 'photo',
+          // Persist the photo so the chat thread can render it (and survive reload).
+          imageUrl: writeUploadBuffer(
+            BUILD_CHAT_DIR,
+            file.originalname || 'photo',
+            file.buffer,
+          ),
         }
-      : dto.url
-        ? { kind: 'url', url: dto.url }
-        : { kind: 'text', text: (dto.text ?? '').trim() };
+      : { kind: 'text', text: (dto.text ?? '').trim() };
 
     if (input.kind === 'text' && !input.text) {
       throw new BadRequestException(
         fieldError(
           'text',
-          'Type a message, attach a photo, or paste a link.',
+          'Type a message or attach a photo.',
           400,
           'ValidationError',
         ),
@@ -124,6 +132,10 @@ export class BuildChatController {
     @Param('id') id: string,
     @Req() req: Request,
   ): Promise<{ id: string }> {
-    return this.chat.deleteChat(id, this.token(req), this.userIdFromCookie(req));
+    return this.chat.deleteChat(
+      id,
+      this.token(req),
+      this.userIdFromCookie(req),
+    );
   }
 }

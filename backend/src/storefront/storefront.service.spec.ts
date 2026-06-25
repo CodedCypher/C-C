@@ -15,7 +15,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { StorefrontService } from './storefront.service';
 import { BuildMatcherService } from './build-matcher.service';
-import { UrlFetcherService } from './url-fetcher.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const stock = (onHand: number, rp = 5) => ({
@@ -200,7 +199,6 @@ describe('StorefrontService — builds', () => {
     match: jest.Mock;
     matchImage: jest.Mock;
   };
-  let urlFetcher: { fetchInspiration: jest.Mock };
 
   beforeEach(async () => {
     prisma = makePrismaStub();
@@ -209,13 +207,11 @@ describe('StorefrontService — builds', () => {
       match: jest.fn().mockResolvedValue(MATCHED),
       matchImage: jest.fn().mockResolvedValue(MATCHED),
     };
-    urlFetcher = { fetchInspiration: jest.fn() };
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
         StorefrontService,
         { provide: PrismaService, useValue: prisma },
         { provide: BuildMatcherService, useValue: matcher },
-        { provide: UrlFetcherService, useValue: urlFetcher },
       ],
     }).compile();
     service = moduleRef.get(StorefrontService);
@@ -295,22 +291,6 @@ describe('StorefrontService — builds', () => {
         undefined,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
-  });
-
-  it('routes a URL door through the fetcher then the text matcher', async () => {
-    urlFetcher.fetchInspiration.mockResolvedValueOnce('fetched page text');
-    const { build } = await service.resolveBuild(
-      undefined,
-      { kind: 'url', url: 'https://example.com/build' },
-      undefined,
-    );
-    expect(urlFetcher.fetchInspiration).toHaveBeenCalledWith(
-      'https://example.com/build',
-    );
-    // The fetched text — not the URL — is what the matcher sees.
-    const urlCall = matcher.match.mock.calls[0] as unknown[];
-    expect(urlCall[0]).toBe('fetched page text');
-    expect(build.sourceType).toBe('URL');
   });
 
   it('routes a photo door through the vision matcher', async () => {

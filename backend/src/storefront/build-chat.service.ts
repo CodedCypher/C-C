@@ -7,10 +7,7 @@ import {
 
 import { PrismaService } from '../prisma/prisma.service';
 import { fieldError } from '../common/structured-error';
-import {
-  BuildChatMode,
-  type BuildChatRole,
-} from '../generated/prisma/client';
+import { BuildChatMode, type BuildChatRole } from '../generated/prisma/client';
 import { matcherNotConfigured } from './part-matcher';
 import { BuildChatLlmService } from './build-chat-llm.service';
 import { systemPrompt } from './build-chat.prompts';
@@ -38,6 +35,8 @@ export interface BuildChatMessageDto {
   id: string;
   role: BuildChatRole;
   content: string;
+  /** Root-relative URL of an attached photo (the build-from-photo door). */
+  imageUrl: string | null;
   /** Set when an assistant turn resolved a parts list → rendered inline. */
   build: BuildDetail | null;
   createdAt: string;
@@ -79,6 +78,7 @@ type MessageRow = {
   id: string;
   role: BuildChatRole;
   content: string;
+  imageUrl: string | null;
   createdAt: Date;
 };
 
@@ -140,6 +140,7 @@ export class BuildChatService {
                 id: true,
                 role: true,
                 content: true,
+                imageUrl: true,
                 buildId: true,
                 createdAt: true,
               },
@@ -164,7 +165,10 @@ export class BuildChatService {
     return {
       ...this.toSummary(chat),
       messages: chat.messages.map((m) =>
-        this.toMessageDto(m, m.buildId ? builds.get(m.buildId) ?? null : null),
+        this.toMessageDto(
+          m,
+          m.buildId ? (builds.get(m.buildId) ?? null) : null,
+        ),
       ),
     };
   }
@@ -199,8 +203,18 @@ export class BuildChatService {
         chatId: chat.id,
         role: 'USER',
         content: this.describeUserInput(params.input),
+        imageUrl:
+          params.input.kind === 'image'
+            ? (params.input.imageUrl ?? null)
+            : null,
       },
-      select: { id: true, role: true, content: true, createdAt: true },
+      select: {
+        id: true,
+        role: true,
+        content: true,
+        imageUrl: true,
+        createdAt: true,
+      },
     });
     await this.maybeSeedTitle(chat, params.input);
 
@@ -208,14 +222,12 @@ export class BuildChatService {
     let assistantText: string;
     let build: BuildDetail | null = null;
 
-    if (params.input.kind === 'image' || params.input.kind === 'url') {
-      // Direct-resolve doors — no conversational call needed.
+    if (params.input.kind === 'image') {
+      // Direct-resolve photo door — no conversational call needed.
       build = await this.tryResolve(params.input, sessionToken, userId);
       assistantText = build
-        ? this.resolveSummary(build, params.input.kind)
-        : params.input.kind === 'image'
-          ? "I couldn't read any parts from that photo. Try a clearer shot, or paste the parts as text."
-          : "I couldn't find a parts list at that link. Paste the parts here and I'll match them.";
+        ? this.resolveSummary(build)
+        : "I couldn't read any parts from that photo. Try a clearer shot, or paste the parts as text.";
     } else {
       // Conversational turn — the model decides whether to resolve.
       const history = await this.history(chat.id);
@@ -246,7 +258,13 @@ export class BuildChatService {
         content: assistantText,
         buildId: build?.id ?? null,
       },
-      select: { id: true, role: true, content: true, createdAt: true },
+      select: {
+        id: true,
+        role: true,
+        content: true,
+        imageUrl: true,
+        createdAt: true,
+      },
     });
 
     // 4. Persist the (possibly switched) mode + bump updatedAt.
@@ -294,7 +312,11 @@ export class BuildChatService {
     userId?: string,
   ): Promise<BuildDetail | null> {
     try {
-      const { build } = await this.storefront.resolveBuild(token, input, userId);
+      const { build } = await this.storefront.resolveBuild(
+        token,
+        input,
+        userId,
+      );
       return build;
     } catch (err) {
       if (err instanceof BadRequestException) return null; // nothing matched
@@ -372,14 +394,12 @@ export class BuildChatService {
   /** A short human label stored as the user message for non-text doors. */
   private describeUserInput(input: ResolveBuildInput): string {
     if (input.kind === 'image') return `[photo] ${input.filename}`;
-    if (input.kind === 'url') return `[link] ${input.url}`;
     return input.text;
   }
 
-  /** Templated reply for the photo/link doors (no LLM call there). */
-  private resolveSummary(build: BuildDetail, kind: 'image' | 'url'): string {
-    const src = kind === 'image' ? 'your photo' : 'that link';
-    return `I read ${src} and matched ${build.inStockCount} of ${build.partCount} parts. Here's your build — review the matches below and add them to your cart.`;
+  /** Templated reply for the photo door (no LLM call there). */
+  private resolveSummary(build: BuildDetail): string {
+    return `I read your photo and matched ${build.inStockCount} of ${build.partCount} parts. Here's your build — review the matches below and add them to your cart.`;
   }
 
   /** Seed a readable title from the first maker input while it's still default. */
@@ -388,12 +408,7 @@ export class BuildChatService {
     input: ResolveBuildInput,
   ): Promise<void> {
     if (chat.title !== DEFAULT_TITLE) return;
-    const seed =
-      input.kind === 'text'
-        ? input.text
-        : input.kind === 'url'
-          ? input.url
-          : input.filename;
+    const seed = input.kind === 'text' ? input.text : input.filename;
     const title = seed.trim().replace(/\s+/g, ' ').slice(0, 60);
     if (title) {
       await this.prisma.buildChat.update({
@@ -432,6 +447,7 @@ export class BuildChatService {
       id: m.id,
       role: m.role,
       content: m.content,
+      imageUrl: m.imageUrl ?? null,
       build,
       createdAt: m.createdAt.toISOString(),
     };

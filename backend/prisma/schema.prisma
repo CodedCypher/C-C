@@ -704,6 +704,8 @@ model Variant {
   orderLines   OrderLine[]
   cartLines    CartLine[]
   buildLines   SavedBuildLine[]
+  // Back-relation for a raw material published into this sellable variant.
+  publishedFromMaterial RawMaterial? @relation("PublishedFromMaterial")
 
   @@index([productId])
 }
@@ -918,6 +920,12 @@ model RawMaterial {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   deletedAt   DateTime?
+
+  // Set when this material has been published as a sellable storefront product.
+  // The published Variant keeps its OWN stock pool (StockItem.kind = VARIANT);
+  // this link only records provenance + blocks double-publishing.
+  publishedVariantId String?  @unique
+  publishedVariant   Variant? @relation("PublishedFromMaterial", fields: [publishedVariantId], references: [id], onDelete: SetNull)
 
   stockItem StockItem? // 1:1 (StockItem holds rawMaterialId)
 }
@@ -1265,6 +1273,7 @@ model BuildChatMessage {
   chatId    String
   role      BuildChatRole
   content   String // the message text
+  imageUrl  String? // root-relative URL of an attached build-from-photo image
   buildId   String? // set when this assistant turn resolved a SavedBuild
   createdAt DateTime      @default(now())
 

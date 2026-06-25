@@ -20,6 +20,7 @@ export { useWarehouseOptions } from "./hooks/use-warehouse-options";
 export { useCreateRawMaterial } from "./hooks/use-create-raw-material";
 export { useUpdateRawMaterial } from "./hooks/use-update-raw-material";
 export { useDeleteRawMaterial } from "./hooks/use-delete-raw-material";
+export { usePublishRawMaterial } from "./hooks/use-publish-raw-material";
 
 // Api (for prefetch / route loaders)
 export {
@@ -28,6 +29,7 @@ export {
   createRawMaterial,
   updateRawMaterial,
   deleteRawMaterial,
+  publishRawMaterial,
   getWarehouseOptions,
   type RawMaterialsParams,
 } from "./api/raw-materials.api";
@@ -54,4 +56,7 @@ export {
   type InitialStockInput,
   type CreateRawMaterialResult,
   type DeleteRawMaterialResult,
+  type PublishRawMaterialInput,
+  type PublishRawMaterialResult,
+  type PublishedProduct,
 } from "./types/raw-materials.types";

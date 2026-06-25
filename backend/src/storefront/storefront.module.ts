@@ -5,7 +5,6 @@ import { StorefrontService } from './storefront.service';
 import { BuildMatcherService } from './build-matcher.service';
 import { GroqMatcherService } from './groq-matcher.service';
 import { GeminiMatcherService } from './gemini-matcher.service';
-import { UrlFetcherService } from './url-fetcher.service';
 import { BuildChatController } from './build-chat.controller';
 import { BuildChatService } from './build-chat.service';
 import { BuildChatLlmService } from './build-chat-llm.service';
@@ -29,7 +28,6 @@ import { GeminiChatService } from './gemini-chat.service';
     BuildMatcherService,
     GroqMatcherService,
     GeminiMatcherService,
-    UrlFetcherService,
     BuildChatService,
     BuildChatLlmService,
     GroqChatService,

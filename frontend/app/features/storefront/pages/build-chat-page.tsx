@@ -44,6 +44,9 @@ export function BuildChatPage() {
   // before the (non-streaming) reply lands. Cleared once the turn settles, by
   // which point the real messages are in the chat cache.
   const [pendingUser, setPendingUser] = useState<string | null>(null);
+  // Local object-URL preview of an attached photo, shown in the optimistic
+  // bubble until the server echoes back the persisted message (with imageUrl).
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
 
   const messages = chatQuery.data?.messages ?? [];
   const threadMessages =
@@ -54,6 +57,7 @@ export function BuildChatPage() {
             id: "__pending__",
             role: "USER" as const,
             content: pendingUser,
+            imageUrl: pendingImage,
             build: null,
             createdAt: "",
           },
@@ -63,13 +67,10 @@ export function BuildChatPage() {
 
   function handleSend(input: ComposerInput) {
     setPendingUser(
-      input.text ??
-        (input.url
-          ? `[link] ${input.url}`
-          : input.image
-            ? `[photo] ${input.image.name}`
-            : ""),
+      input.text ?? (input.image ? `[photo] ${input.image.name}` : ""),
     );
+    const previewUrl = input.image ? URL.createObjectURL(input.image) : null;
+    setPendingImage(previewUrl);
     send.mutate(
       { chatId, mode: "BRAINSTORM", ...input },
       {
@@ -81,7 +82,11 @@ export function BuildChatPage() {
             });
           }
         },
-        onSettled: () => setPendingUser(null),
+        onSettled: () => {
+          setPendingUser(null);
+          setPendingImage(null);
+          if (previewUrl) URL.revokeObjectURL(previewUrl);
+        },
       },
     );
   }
@@ -107,8 +112,8 @@ export function BuildChatPage() {
         </h1>
         <p className="max-w-[64ch] text-[0.9375rem] leading-[1.6] text-smoke">
           Chat through your idea — I'll suggest projects, pressure-test the plan,
-          and turn the parts into an in-stock cart. Paste a list, snap a photo, or
-          drop a tutorial link any time.
+          and turn the parts into an in-stock cart. Paste a list or snap a photo
+          any time.
         </p>
       </header>
 
@@ -193,8 +198,8 @@ function WelcomePanel({ onPick }: { onPick: (text: string) => void }) {
           What are we building today?
         </h2>
         <p className="max-w-[42ch] text-[0.875rem] leading-[1.6] text-smoke">
-          Describe an idea, or pick a starting point. Paste a parts list, snap a
-          photo, or drop a tutorial link any time.
+          Describe an idea, or pick a starting point. Paste a parts list or snap
+          a photo any time.
         </p>
       </div>
       <div className="flex flex-col gap-2">

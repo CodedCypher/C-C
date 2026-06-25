@@ -4,11 +4,13 @@ import { z } from "zod";
 import { Boxes, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
+import { Dropzone } from "~/components/ui/dropzone";
 import { unwrapFieldErrors } from "~/lib/axios";
 import { peso2 } from "~/lib/format";
 import {
   useCreateProjectKit,
   useUpdateProjectKit,
+  useUploadKitImage,
 } from "../hooks/use-project-kits";
 import {
   createProjectKitSchema,
@@ -54,10 +56,12 @@ export function KitForm({
   const navigate = useNavigate();
   const createMut = useCreateProjectKit();
   const updateMut = useUpdateProjectKit();
+  const uploadMut = useUploadKitImage();
 
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.primaryImage ?? "");
+  const [pendingImage, setPendingImage] = useState<File | null>(null);
   const [kitPrice, setKitPrice] = useState(
     initial ? String(initial.kitPrice) : "",
   );
@@ -76,7 +80,39 @@ export function KitForm({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formErrors, setFormErrors] = useState<string[]>([]);
 
-  const pending = createMut.isPending || updateMut.isPending;
+  const pending =
+    createMut.isPending || updateMut.isPending || uploadMut.isPending;
+
+  function handleImage(file: File | null) {
+    // clear any prior image error
+    setFieldErrors((fe) => {
+      if (!fe.imageUrl) return fe;
+      const next = { ...fe };
+      delete next.imageUrl;
+      return next;
+    });
+    if (!file) {
+      setPendingImage(null);
+      setImageUrl("");
+      return;
+    }
+    setPendingImage(file);
+    uploadMut.mutate(file, {
+      onSuccess: (r) => {
+        setImageUrl(r.url);
+        setPendingImage(null);
+      },
+      onError: (err) => {
+        setPendingImage(null);
+        const unwrapped = unwrapFieldErrors(err);
+        const msg =
+          unwrapped?.fieldErrors?.file?.[0] ??
+          unwrapped?.formErrors?.[0] ??
+          "Upload failed — please try again.";
+        setFieldErrors((fe) => ({ ...fe, imageUrl: [msg] }));
+      },
+    });
+  }
 
   const allPriced = parts.length > 0 && parts.every((p) => p.unitPrice != null);
   const knownTotal = parts.reduce(
@@ -185,14 +221,13 @@ export function KitForm({
           placeholder="Weather Station Starter Kit"
           className="md:col-span-2"
         />
-        <TextField
-          label="Hero image URL"
-          path="imageUrl"
-          errors={fieldErrors}
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="/products/rpi5.jpg or https://…"
-          hint="Absolute http(s) or root-relative path."
+        <Dropzone
+          label="Hero image"
+          value={pendingImage ?? (imageUrl || null)}
+          onFile={handleImage}
+          loading={uploadMut.isPending}
+          error={fieldErrors?.imageUrl?.[0] ?? null}
+          hint="Drag an image here, or click to browse."
         />
         <TextField
           label="Kit price (assembled)"

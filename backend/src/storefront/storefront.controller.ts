@@ -106,9 +106,9 @@ export class StorefrontController {
   /* ----- Builds — resolve maker inspiration into a saved, shareable cart ----- */
 
   /**
-   * Resolve a pasted parts list (`text`) OR a tutorial link (`url`) into a
-   * persisted build. `url` wins when present. Mirrors `addLine`'s cookie
-   * handling so the build and the guest cart share a `cr_cart` owner.
+   * Resolve a pasted parts list (`text`) into a persisted build. Mirrors
+   * `addLine`'s cookie handling so the build and the guest cart share a
+   * `cr_cart` owner.
    */
   @Post('builds/resolve')
   async resolveBuild(
@@ -116,9 +116,7 @@ export class StorefrontController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<BuildDetail> {
-    const input: ResolveBuildInput = dto.url
-      ? { kind: 'url', url: dto.url }
-      : { kind: 'text', text: dto.text ?? '' };
+    const input: ResolveBuildInput = { kind: 'text', text: dto.text ?? '' };
     const { build, token } = await this.storefront.resolveBuild(
       this.token(req),
       input,

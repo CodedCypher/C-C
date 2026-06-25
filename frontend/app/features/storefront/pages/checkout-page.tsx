@@ -21,6 +21,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft, CheckCircle2, ShoppingCart } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
+import { Dropzone } from "~/components/ui/dropzone";
 import { peso2 } from "~/lib/format";
 import { unwrapFieldErrors } from "~/lib/axios";
 import { useAuth } from "~/features/auth";
@@ -742,21 +743,12 @@ export function CheckoutPage() {
                 error={err("reference")}
               />
 
-              <div className="flex flex-col gap-1.5">
-                <label className={labelClass}>Proof of payment</label>
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={(e) => setProof(e.target.files?.[0] ?? null)}
-                  className="font-mono text-[0.8125rem] text-ink file:mr-3 file:border-2 file:border-line file:bg-paper-2 file:px-3 file:py-1.5 file:font-mono file:text-[0.75rem] file:text-ink"
-                />
-                {proof ? (
-                  <p className="font-mono text-[0.6875rem] text-smoke">
-                    {proof.name}
-                  </p>
-                ) : null}
-                {err("proof") ? <p className={errClass}>{err("proof")}</p> : null}
-              </div>
+              <Dropzone
+                label="Proof of payment"
+                value={proof}
+                onFile={setProof}
+                error={err("proof") ?? null}
+              />
             </div>
           ) : null}
 

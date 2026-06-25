@@ -5,7 +5,6 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUrl,
   Max,
   MaxLength,
   Min,
@@ -35,29 +34,21 @@ export class UpdateLineDto {
 
 /**
  * POST /storefront/builds/resolve — resolve maker inspiration into a cart from
- * EITHER a pasted parts list (`text`) OR a tutorial link (`url`). When `url` is
- * present it takes precedence and `text` is ignored; otherwise `text` is
- * required. The photo door is a separate multipart endpoint (`resolve-image`).
+ * a pasted parts list (`text`). The photo door is a separate multipart endpoint
+ * (`resolve-image`).
  */
 export class ResolveBuildDto {
-  @ValidateIf((o: ResolveBuildDto) => o.url == null)
   @IsString()
   @IsNotEmpty()
   @MaxLength(8000)
   text?: string;
-
-  @ValidateIf((o: ResolveBuildDto) => o.url != null)
-  @IsString()
-  @MaxLength(2048)
-  @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
-  url?: string;
 }
 
 /**
  * POST /storefront/build-chats — one turn of the build-assistant chat. The maker
- * input is whichever of `text` / `url` is present, OR an attached `image` file
- * part (handled by the controller's FileInterceptor, not this DTO). `chatId`
- * appends to an existing chat; absent → a new chat is lazily created.
+ * input is the `text` turn, OR an attached `image` file part (handled by the
+ * controller's FileInterceptor, not this DTO). `chatId` appends to an existing
+ * chat; absent → a new chat is lazily created.
  */
 export class SendBuildChatDto {
   @IsOptional()
@@ -71,12 +62,6 @@ export class SendBuildChatDto {
   @IsString()
   @MaxLength(8000)
   text?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(2048)
-  @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
-  url?: string;
 }
 
 /** True when the checkout is a delivery (vs pickup) — gates address validation. */

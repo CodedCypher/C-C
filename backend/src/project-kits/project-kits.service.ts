@@ -253,7 +253,12 @@ export class ProjectKitsService {
     const slug = (dto.slug?.trim() || deriveSlug(dto.title)).trim();
     if (!slug) {
       throw new ConflictException(
-        fieldError('title', 'Could not derive a slug from the title.', 409, 'Conflict'),
+        fieldError(
+          'title',
+          'Could not derive a slug from the title.',
+          409,
+          'Conflict',
+        ),
       );
     }
     const sku = kitSku(slug);
@@ -266,7 +271,12 @@ export class ProjectKitsService {
       });
       if (slugClash) {
         throw new ConflictException(
-          fieldError('slug', `Slug "${slug}" is already in use`, 409, 'Conflict'),
+          fieldError(
+            'slug',
+            `Slug "${slug}" is already in use`,
+            409,
+            'Conflict',
+          ),
         );
       }
       const skuClash = await tx.variant.findFirst({
@@ -275,7 +285,12 @@ export class ProjectKitsService {
       });
       if (skuClash) {
         throw new ConflictException(
-          fieldError('slug', `A kit with sku "${sku}" already exists`, 409, 'Conflict'),
+          fieldError(
+            'slug',
+            `A kit with sku "${sku}" already exists`,
+            409,
+            'Conflict',
+          ),
         );
       }
 
@@ -288,7 +303,9 @@ export class ProjectKitsService {
         select: { id: true },
       });
 
-      const position = await tx.variant.count({ where: { isProjectKit: true } });
+      const position = await tx.variant.count({
+        where: { isProjectKit: true },
+      });
 
       const product = await tx.product.create({
         data: {
@@ -363,9 +380,13 @@ export class ProjectKitsService {
       // Product-level marketing fields.
       const productData: Prisma.ProductUpdateInput = {};
       if (dto.title !== undefined) productData.title = dto.title;
-      if (dto.description !== undefined) productData.description = dto.description;
+      if (dto.description !== undefined)
+        productData.description = dto.description;
       if (Object.keys(productData).length > 0) {
-        await tx.product.update({ where: { id: kit.productId }, data: productData });
+        await tx.product.update({
+          where: { id: kit.productId },
+          data: productData,
+        });
       }
 
       // Hero image: string = set/replace primary, null = clear, undefined = leave.
@@ -428,7 +449,10 @@ export class ProjectKitsService {
   }
 
   // ── Publish toggle ────────────────────────────────────────────────────────────
-  async setPublished(id: string, published: boolean): Promise<{ id: string; published: boolean }> {
+  async setPublished(
+    id: string,
+    published: boolean,
+  ): Promise<{ id: string; published: boolean }> {
     const kit = await this.prisma.variant.findFirst({
       where: { id, isProjectKit: true, deletedAt: null },
       select: {
@@ -463,7 +487,10 @@ export class ProjectKitsService {
   }
 
   // ── Reorder (up/down, renumbers all kits to keep positions dense) ─────────────
-  async move(id: string, direction: 'up' | 'down'): Promise<{ id: string; moved: boolean }> {
+  async move(
+    id: string,
+    direction: 'up' | 'down',
+  ): Promise<{ id: string; moved: boolean }> {
     const kits = await this.prisma.variant.findMany({
       where: { isProjectKit: true, deletedAt: null },
       orderBy: [{ kitPosition: 'asc' }, { createdAt: 'desc' }],
@@ -479,7 +506,10 @@ export class ProjectKitsService {
     [order[idx], order[swap]] = [order[swap], order[idx]];
     await this.prisma.$transaction(
       order.map((kid, i) =>
-        this.prisma.variant.update({ where: { id: kid }, data: { kitPosition: i } }),
+        this.prisma.variant.update({
+          where: { id: kid },
+          data: { kitPosition: i },
+        }),
       ),
     );
     return { id, moved: true };

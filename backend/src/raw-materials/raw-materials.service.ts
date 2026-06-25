@@ -1,19 +1,28 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma, UnitOfMeasure } from '../generated/prisma/client';
+import {
+  Prisma,
+  ProductStatus,
+  SourcingType,
+  UnitOfMeasure,
+} from '../generated/prisma/client';
 import { InventoryPostingService } from '../common/inventory/inventory-posting.service';
+import { ProductsService } from '../products/products.service';
+import { CreateProductDto } from '../products/dto/create-product.dto';
 import { normalizePaging } from '../common/pagination';
 import { toNum, toISO } from '../common/money';
 import { computeStockState } from '../common/stock';
-import { fieldError } from '../common/structured-error';
+import { deriveSlug, fieldError } from '../common/structured-error';
 import {
   CreateRawMaterialDto,
   UpdateRawMaterialDto,
 } from './dto/create-raw-material.dto';
+import { PublishRawMaterialDto } from './dto/publish-raw-material.dto';
 
 export interface RawMaterialsResult {
   rows: {
@@ -50,6 +59,13 @@ export interface RawMaterialDetail {
   reserved: number;
   available: number;
   incoming: number;
+  /** Set once this material has been published as a sellable storefront product. */
+  published: {
+    variantId: string;
+    productId: string;
+    slug: string;
+    title: string;
+  } | null;
   warehouses: {
     warehouseId: string;
     code: string;
@@ -78,11 +94,20 @@ export interface CreateRawMaterialResult {
   sku: string;
 }
 
+export interface PublishRawMaterialResult {
+  rawMaterialId: string;
+  productId: string;
+  variantId: string;
+  slug: string;
+  title: string;
+}
+
 @Injectable()
 export class RawMaterialsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly posting: InventoryPostingService,
+    private readonly products: ProductsService,
   ) {}
 
   // ── GET /raw-materials ─────────────────────────────────────────────────────
@@ -180,6 +205,9 @@ export class RawMaterialsService {
         sku: true,
         description: true,
         defaultUnit: true,
+        publishedVariant: {
+          select: { id: true, product: { select: { id: true, slug: true, title: true } } },
+        },
         stockItem: {
           select: {
             id: true,
@@ -275,6 +303,14 @@ export class RawMaterialsService {
       reserved,
       available: onHand - reserved,
       incoming,
+      published: material.publishedVariant
+        ? {
+            variantId: material.publishedVariant.id,
+            productId: material.publishedVariant.product.id,
+            slug: material.publishedVariant.product.slug,
+            title: material.publishedVariant.product.title,
+          }
+        : null,
       warehouses,
       movements,
     };
@@ -413,5 +449,112 @@ export class RawMaterialsService {
       data: { deletedAt: new Date() },
     });
     return { id };
+  }
+
+  // ── POST /raw-materials/:id/publish ────────────────────────────────────────
+  /**
+   * Publish an internal raw material as a sellable storefront Product + Variant.
+   * The new variant gets its OWN web-stock pool (StockItem.kind = VARIANT) — it
+   * is NOT synced with the material's stock. Records the link on the material so
+   * it can't be published twice.
+   */
+  async publishAsProduct(
+    id: string,
+    dto: PublishRawMaterialDto,
+  ): Promise<PublishRawMaterialResult> {
+    const material = await this.prisma.rawMaterial.findFirst({
+      where: { id, deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        description: true,
+        publishedVariantId: true,
+      },
+    });
+    if (!material) {
+      throw new NotFoundException(
+        fieldError('id', `Raw material "${id}" not found`, 404, 'NotFound'),
+      );
+    }
+    if (material.publishedVariantId) {
+      throw new BadRequestException(
+        fieldError(
+          'id',
+          'This raw material has already been published as a product.',
+          400,
+          'BadRequest',
+        ),
+      );
+    }
+
+    // The storefront catalog only surfaces stock at the default web warehouse.
+    const webWarehouse = await this.prisma.warehouse.findFirst({
+      where: { isDefaultWeb: true },
+      select: { id: true },
+    });
+    if (!webWarehouse) {
+      throw new BadRequestException(
+        fieldError(
+          'initialStock',
+          'No default web warehouse is configured to hold sellable stock.',
+          400,
+          'BadRequest',
+        ),
+      );
+    }
+
+    const sku = dto.sku?.trim() || material.sku;
+    const slug = dto.slug?.trim() || deriveSlug(material.name);
+    const initialStock = dto.initialStock ?? '0';
+    const hasStock = Number(initialStock) > 0;
+
+    const productDto: CreateProductDto = {
+      title: material.name,
+      slug,
+      description: material.description ?? undefined,
+      status: ProductStatus.ACTIVE,
+      categoryIds: dto.categoryId ? [dto.categoryId] : [],
+      optionTypes: [],
+      variants: [
+        {
+          sku,
+          sourcingType: SourcingType.PURCHASED,
+          price: dto.price,
+          isActive: true,
+          optionValues: [],
+          stock: hasStock
+            ? [{ warehouseId: webWarehouse.id, onHand: initialStock }]
+            : [],
+        },
+      ],
+      images: [],
+      specs: [],
+    };
+
+    // Reuses the canonical create path (Product + Variant + StockItem +
+    // WarehouseStockItem + RECEIPT movement, all in one transaction). It returns
+    // no variant id, so we look the variant up by its unique SKU afterwards.
+    const product = await this.products.createProduct(productDto);
+    const variant = await this.prisma.variant.findUnique({
+      where: { sku },
+      select: { id: true },
+    });
+    if (!variant) {
+      throw new Error('Published variant not found immediately after creation');
+    }
+
+    await this.prisma.rawMaterial.update({
+      where: { id: material.id },
+      data: { publishedVariantId: variant.id },
+    });
+
+    return {
+      rawMaterialId: material.id,
+      productId: product.id,
+      variantId: variant.id,
+      slug: product.slug,
+      title: product.title,
+    };
   }
 }

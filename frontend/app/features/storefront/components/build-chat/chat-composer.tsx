@@ -1,16 +1,22 @@
 /**
- * The chat composer: a text box plus the photo and link doors carried over from
- * the old intake page. Send priority mirrors the backend: image > link > text.
+ * The chat composer: a text box plus the photo door carried over from the old
+ * intake page. Send priority mirrors the backend: image > text.
  */
 
 import { useRef, useState } from "react";
-import { ImageUp, Link2, Send, X } from "lucide-react";
+import { useDropzone } from "react-dropzone";
+import { ImageUp, Send, X } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
 
+const IMAGE_ACCEPT = {
+  "image/jpeg": [".jpg", ".jpeg"],
+  "image/png": [".png"],
+  "image/webp": [".webp"],
+};
+
 export interface ComposerInput {
   text?: string;
-  url?: string;
   image?: File;
 }
 
@@ -22,8 +28,6 @@ export function ChatComposer({
   pending: boolean;
 }) {
   const [text, setText] = useState("");
-  const [url, setUrl] = useState("");
-  const [showUrl, setShowUrl] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -34,26 +38,38 @@ export function ChatComposer({
       setFile(null);
       return;
     }
-    if (showUrl && url.trim()) {
-      onSend({ url: url.trim() });
-      setUrl("");
-      setShowUrl(false);
-      return;
-    }
     const t = text.trim();
     if (!t) return;
     onSend({ text: t });
     setText("");
   }
 
-  const canSend =
-    !pending &&
-    (Boolean(file) ||
-      (showUrl && url.trim().length > 0) ||
-      text.trim().length > 0);
+  const canSend = !pending && (Boolean(file) || text.trim().length > 0);
+
+  // Drag-and-drop a photo anywhere onto the composer (click-to-browse stays on
+  // the attach button, so the textarea + buttons keep working normally).
+  const { getRootProps, isDragActive } = useDropzone({
+    onDrop: (accepted: File[]) => {
+      if (accepted[0]) setFile(accepted[0]);
+    },
+    accept: IMAGE_ACCEPT,
+    maxSize: 5 * 1024 * 1024,
+    multiple: false,
+    noClick: true,
+    noKeyboard: true,
+    disabled: pending,
+  });
 
   return (
-    <div className="flex flex-col gap-2 border-t-2 border-line bg-paper px-4 pt-3">
+    <div
+      {...getRootProps()}
+      className="relative flex flex-col gap-2 border-t-2 border-line bg-paper px-4 pt-3"
+    >
+      {isDragActive ? (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-signal bg-paper/90 font-mono text-[0.75rem] font-bold uppercase tracking-[0.08em] text-ink">
+          Drop the photo
+        </div>
+      ) : null}
       {file && (
         <div className="flex items-center gap-2 self-start border-2 border-line bg-paper-2 px-3 py-1.5">
           <ImageUp className="size-3.5 text-smoke" aria-hidden="true" />
@@ -69,17 +85,6 @@ export function ChatComposer({
             <X className="size-3.5" />
           </button>
         </div>
-      )}
-
-      {showUrl && (
-        <input
-          type="url"
-          inputMode="url"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://www.instructables.com/…"
-          className="w-full border-2 border-line bg-paper px-3 py-2 font-mono text-[0.8125rem] text-ink outline-none focus:border-signal"
-        />
       )}
 
       <div className="flex items-end gap-2 pb-3">
@@ -102,18 +107,6 @@ export function ChatComposer({
             e.target.value = "";
           }}
         />
-        <button
-          type="button"
-          onClick={() => setShowUrl((s) => !s)}
-          title="Paste a tutorial or build-log link"
-          aria-label="Paste a link"
-          aria-pressed={showUrl}
-          className={`flex size-10 shrink-0 items-center justify-center border-2 border-line ${
-            showUrl ? "bg-ink text-paper" : "bg-paper text-smoke hover:text-ink"
-          }`}
-        >
-          <Link2 className="size-4" aria-hidden="true" />
-        </button>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}

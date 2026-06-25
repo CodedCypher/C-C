@@ -19,12 +19,15 @@ import { z } from "zod";
 import {
   createRawMaterialResultSchema,
   deleteRawMaterialResultSchema,
+  publishRawMaterialResultSchema,
   rawMaterialDetailSchema,
   rawMaterialRowSchema,
   warehouseOptionSchema,
   type CreateRawMaterialInput,
   type CreateRawMaterialResult,
   type DeleteRawMaterialResult,
+  type PublishRawMaterialInput,
+  type PublishRawMaterialResult,
   type RawMaterialDetail,
   type RawMaterialRow,
   type UpdateRawMaterialInput,
@@ -78,6 +81,15 @@ export async function deleteRawMaterial(
 ): Promise<DeleteRawMaterialResult> {
   const res = await api.delete(`/raw-materials/${id}`);
   return deleteRawMaterialResultSchema.parse(res.data);
+}
+
+/** POST /raw-materials/:id/publish — turn a material into a sellable product. */
+export async function publishRawMaterial(
+  id: string,
+  body: PublishRawMaterialInput,
+): Promise<PublishRawMaterialResult> {
+  const res = await api.post(`/raw-materials/${id}/publish`, body);
+  return publishRawMaterialResultSchema.parse(res.data);
 }
 
 /**

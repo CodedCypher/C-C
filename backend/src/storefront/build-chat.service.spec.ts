@@ -60,7 +60,10 @@ function makePrismaStub() {
       ),
       update: jest.fn(({ data }: { data: Record<string, unknown> }) => {
         chat = { ...(chat ?? {}), ...data, updatedAt: new Date() };
-        return Promise.resolve({ ...chat, _count: { messages: messages.length } });
+        return Promise.resolve({
+          ...chat,
+          _count: { messages: messages.length },
+        });
       }),
       findMany: jest.fn(() => Promise.resolve([])),
       delete: jest.fn(({ where }: { where: { id: string } }) =>
@@ -117,7 +120,11 @@ describe('BuildChatService', () => {
 
   it('persists a user + assistant turn and does not resolve on a plain reply', async () => {
     llm.complete.mockResolvedValue(
-      JSON.stringify({ reply: 'What sensors do you have?', resolve: false, partsList: null }),
+      JSON.stringify({
+        reply: 'What sensors do you have?',
+        resolve: false,
+        partsList: null,
+      }),
     );
     const { result, token } = await service.send(
       { mode: 'BRAINSTORM', input: { kind: 'text', text: 'weather station' } },
@@ -133,9 +140,16 @@ describe('BuildChatService', () => {
 
   it('resolves a build when the envelope asks for it, attaching it to the turn', async () => {
     llm.complete.mockResolvedValue(
-      JSON.stringify({ reply: "Here's your build", resolve: true, partsList: '1x ESP32 dev board' }),
+      JSON.stringify({
+        reply: "Here's your build",
+        resolve: true,
+        partsList: '1x ESP32 dev board',
+      }),
     );
-    storefront.resolveBuild.mockResolvedValue({ build: FAKE_BUILD, token: 'tok-1' });
+    storefront.resolveBuild.mockResolvedValue({
+      build: FAKE_BUILD,
+      token: 'tok-1',
+    });
 
     const { result } = await service.send(
       { mode: 'IMPECCABLE', input: { kind: 'text', text: 'finalize it' } },
@@ -169,12 +183,20 @@ describe('BuildChatService', () => {
   });
 
   it('routes the photo door straight to the resolver (no LLM call)', async () => {
-    storefront.resolveBuild.mockResolvedValue({ build: FAKE_BUILD, token: 't' });
+    storefront.resolveBuild.mockResolvedValue({
+      build: FAKE_BUILD,
+      token: 't',
+    });
 
     const { result } = await service.send(
       {
         mode: 'BRAINSTORM',
-        input: { kind: 'image', data: 'AAAA', mimeType: 'image/png', filename: 'b.png' },
+        input: {
+          kind: 'image',
+          data: 'AAAA',
+          mimeType: 'image/png',
+          filename: 'b.png',
+        },
       },
       't',
       undefined,

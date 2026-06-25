@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { api } from "~/lib/axios";
 import {
   kitIdResultSchema,
@@ -58,6 +59,19 @@ export async function createProjectKit(
 ): Promise<KitIdResult> {
   const res = await api.post("/project-kits", body);
   return kitIdResultSchema.parse(res.data);
+}
+
+const kitImageResultSchema = z.object({ url: z.string() });
+export type KitImageResult = z.infer<typeof kitImageResultSchema>;
+
+/** POST /project-kits/image — upload a hero image, returns its stored URL. */
+export async function uploadProjectKitImage(
+  file: File,
+): Promise<KitImageResult> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await api.post("/project-kits/image", form);
+  return kitImageResultSchema.parse(res.data);
 }
 
 // PATCH /project-kits/:id — update marketing / price / position / parts

@@ -37,11 +37,15 @@ export class BuildChatLlmService {
       try {
         const out = await provider.complete(messages);
         if (out && out.trim()) return out;
-        this.logger.warn(`${provider.name} chat returned empty; trying fallback`);
+        this.logger.warn(
+          `${provider.name} chat returned empty; trying fallback`,
+        );
       } catch (err) {
         lastErr = err;
         const reason = err instanceof Error ? err.message : String(err);
-        this.logger.warn(`${provider.name} chat failed (${reason}); trying fallback`);
+        this.logger.warn(
+          `${provider.name} chat failed (${reason}); trying fallback`,
+        );
       }
     }
 

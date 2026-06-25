@@ -449,8 +449,10 @@ async function main() {
     { name: 'PCB Blank 5x7cm', sku: 'RM-PCB57', uom: 'EACH', onHand: 600, rp: 100, cost: 25 },
     { name: 'Header Pins 40p', sku: 'RM-HDR40', uom: 'EACH', onHand: 1500, rp: 200, cost: 12 },
   ] as const;
-  // Capture material stock items by sku for the multi-level BOM chain below.
+  // Capture material stock items by sku for the multi-level BOM chain below,
+  // and material ids by sku so sellable components can link back to them.
   const matStockBySku: Record<string, string> = {};
+  const matIdBySku: Record<string, string> = {};
   for (let i = 0; i < rawMaterials.length; i++) {
     const rm = rawMaterials[i];
     const created = await prisma.rawMaterial.create({
@@ -460,6 +462,7 @@ async function main() {
         defaultUnit: rm.uom,
       },
     });
+    matIdBySku[rm.sku] = created.id;
     const matStockItem = await prisma.stockItem.create({
       data: {
         kind: 'MATERIAL',
@@ -481,6 +484,105 @@ async function main() {
       mainWh.id,
       qcWh.id,
     );
+  }
+
+  // ── Sellable components (loose parts the build chat should match) ─────────────
+  // Common maker parts that otherwise show NO MATCH in the build chat. Each is a
+  // normal ACTIVE Product + PURCHASED Variant with its own web stock. Where a
+  // matching raw material exists, link it (publishedVariantId) to demo the admin
+  // "Publish as product" state.
+  console.log('sellable components');
+  const components: {
+    title: string;
+    slug: string;
+    sku: string;
+    price: number;
+    onHand: number;
+    reorderPoint: number;
+    materialSku?: string;
+  }[] = [
+    {
+      title: '10kΩ Resistor (1/4W)',
+      slug: '10k-resistor-quarter-watt',
+      sku: 'COMP-R10K',
+      price: 2,
+      onHand: 1000,
+      reorderPoint: 100,
+      materialSku: 'RM-R10K',
+    },
+    {
+      title: '220Ω Resistor (1/4W)',
+      slug: '220-resistor-quarter-watt',
+      sku: 'COMP-R220',
+      price: 2,
+      onHand: 1000,
+      reorderPoint: 100,
+    },
+    {
+      title: '5mm LED — Red',
+      slug: '5mm-led-red',
+      sku: 'COMP-LED5R',
+      price: 5,
+      onHand: 800,
+      reorderPoint: 100,
+    },
+    {
+      title: 'Solderless Breadboard (830-point)',
+      slug: 'breadboard-830',
+      sku: 'COMP-BB830',
+      price: 120,
+      onHand: 150,
+      reorderPoint: 30,
+    },
+    {
+      title: '9V Alkaline Battery',
+      slug: '9v-battery',
+      sku: 'COMP-BAT9V',
+      price: 60,
+      onHand: 200,
+      reorderPoint: 40,
+    },
+  ];
+  for (let i = 0; i < components.length; i++) {
+    const c = components[i];
+    const product = await prisma.product.create({
+      data: { title: c.title, slug: c.slug, status: 'ACTIVE' },
+    });
+    const variant = await prisma.variant.create({
+      data: {
+        productId: product.id,
+        sku: c.sku,
+        title: c.title,
+        sourcingType: 'PURCHASED',
+        price: money(c.price),
+        isActive: true,
+        position: 0,
+      },
+    });
+    const stockItem = await prisma.stockItem.create({
+      data: {
+        kind: 'VARIANT',
+        variantId: variant.id,
+        unitOfMeasure: 'EACH',
+        onHand: money(c.onHand),
+        reserved: money(0),
+        incoming: money(0),
+        reorderPoint: money(c.reorderPoint),
+        reorderQty: money(c.reorderPoint * 4),
+      },
+    });
+    await seedWarehouseStock(
+      stockItem.id,
+      { onHand: c.onHand, reserved: 0, incoming: 0 },
+      mainWh.id,
+      qcWh.id,
+    );
+    if (c.materialSku && matIdBySku[c.materialSku]) {
+      await prisma.rawMaterial.update({
+        where: { id: matIdBySku[c.materialSku] },
+        data: { publishedVariantId: variant.id },
+      });
+    }
   }
 
   // ── Admin login (real bcrypt hash so you can sign in to the console) ──────────

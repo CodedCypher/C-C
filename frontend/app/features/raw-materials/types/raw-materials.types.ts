@@ -91,6 +91,15 @@ export const rawMaterialMovementSchema = z.object({
 });
 export type RawMaterialMovement = z.infer<typeof rawMaterialMovementSchema>;
 
+/** Set once a material has been published as a sellable storefront product. */
+export const publishedProductSchema = z.object({
+  variantId: z.string(),
+  productId: z.string(),
+  slug: z.string(),
+  title: z.string(),
+});
+export type PublishedProduct = z.infer<typeof publishedProductSchema>;
+
 export const rawMaterialDetailSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -107,6 +116,7 @@ export const rawMaterialDetailSchema = z.object({
   reserved: z.number(),
   available: z.number(),
   incoming: z.number(),
+  published: publishedProductSchema.nullable(),
   warehouses: z.array(rawMaterialWarehouseSchema),
   movements: z.array(rawMaterialMovementSchema),
 });
@@ -151,6 +161,18 @@ export type DeleteRawMaterialResult = z.infer<
   typeof deleteRawMaterialResultSchema
 >;
 
+/** POST /raw-materials/:id/publish → the new sellable product/variant. */
+export const publishRawMaterialResultSchema = z.object({
+  rawMaterialId: z.string(),
+  productId: z.string(),
+  variantId: z.string(),
+  slug: z.string(),
+  title: z.string(),
+});
+export type PublishRawMaterialResult = z.infer<
+  typeof publishRawMaterialResultSchema
+>;
+
 /* ------------------------------------------------------------------ *
  * Create / update payloads (POST + PATCH /raw-materials)
  *
@@ -188,4 +210,12 @@ export interface UpdateRawMaterialInput {
   safetyStock?: string;
   trackLot?: boolean;
   trackSerial?: boolean;
+}
+
+export interface PublishRawMaterialInput {
+  price: string;
+  initialStock?: string;
+  sku?: string;
+  slug?: string;
+  categoryId?: string;
 }
